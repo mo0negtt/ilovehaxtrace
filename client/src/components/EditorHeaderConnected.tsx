@@ -1,14 +1,24 @@
 import { Button } from "@/components/ui/button";
-import { Home, Settings, HelpCircle, Undo, Redo } from "lucide-react";
+import { Home, Settings, HelpCircle, Undo, Redo, Save } from "lucide-react";
 import { useEditor } from "@/contexts/EditorContext";
 import { ImportExportDialog } from "./ImportExportDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface EditorHeaderConnectedProps {
   onNavigate?: (page: string) => void;
 }
 
 export default function EditorHeaderConnected({ onNavigate }: EditorHeaderConnectedProps) {
-  const { undo, redo, canUndo, canRedo } = useEditor();
+  const { undo, redo, canUndo, canRedo, saveMap } = useEditor();
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    await saveMap();
+    toast({
+      title: "Map saved",
+      description: "Your map has been saved successfully",
+    });
+  };
 
   const handleNavClick = (page: string) => {
     console.log(`Navigate to: ${page}`);
@@ -84,6 +94,15 @@ export default function EditorHeaderConnected({ onNavigate }: EditorHeaderConnec
           <Redo className="w-4 h-4" />
         </Button>
         <div className="h-4 w-px bg-border mx-1" />
+        <Button
+          variant="default"
+          size="sm"
+          onClick={handleSave}
+          data-testid="button-save-map"
+        >
+          <Save className="w-4 h-4 mr-2" />
+          Save
+        </Button>
         <ImportExportDialog />
       </div>
     </header>

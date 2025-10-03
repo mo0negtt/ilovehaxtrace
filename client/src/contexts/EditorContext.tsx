@@ -4,12 +4,14 @@ import { type Layer, type Tile, type GameMap } from "@shared/schema";
 type Tool = 'select' | 'pencil' | 'eraser' | 'fill' | 'rectangle' | 'circle' | 'move' | 'pan';
 
 interface EditorState {
-  currentMap: Omit<GameMap, 'id' | 'createdAt' | 'updatedAt'> | null;
+  currentMap: GameMap | null;
   activeTool: Tool;
   activeLayerId: string | null;
   selectedTileColor: string;
   zoom: number;
-  history: Omit<GameMap, 'id' | 'createdAt' | 'updatedAt'>[];
+  viewportOffset: { x: number; y: number };
+  selectedTiles: { layerId: string; x: number; y: number }[];
+  history: GameMap[];
   historyIndex: number;
 }
 
@@ -18,6 +20,8 @@ interface EditorContextType extends EditorState {
   setActiveLayer: (layerId: string) => void;
   setSelectedTileColor: (color: string) => void;
   setZoom: (zoom: number) => void;
+  setViewportOffset: (offset: { x: number; y: number }) => void;
+  panViewport: (deltaX: number, deltaY: number) => void;
   addTile: (layerId: string, tile: Tile) => void;
   removeTile: (layerId: string, x: number, y: number) => void;
   fillArea: (layerId: string, startX: number, startY: number, color: string) => void;
@@ -26,12 +30,16 @@ interface EditorContextType extends EditorState {
   toggleLayerVisibility: (layerId: string) => void;
   toggleLayerLock: (layerId: string) => void;
   updateMapSettings: (settings: Partial<Pick<GameMap, 'name' | 'width' | 'height' | 'tileSize'>>) => void;
+  selectTile: (layerId: string, x: number, y: number) => void;
+  clearSelection: () => void;
+  moveSelectedTiles: (deltaX: number, deltaY: number) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
   createNewMap: (name: string, width: number, height: number, tileSize: number) => void;
   loadMap: (map: GameMap) => void;
+  saveMap: () => Promise<void>;
   exportMap: () => string;
   importMap: (jsonData: string) => void;
 }
@@ -39,32 +47,44 @@ interface EditorContextType extends EditorState {
 const EditorContext = createContext<EditorContextType | undefined>(undefined);
 
 export function EditorProvider({ children }: { children: React.ReactNode }) {
+  const initialMap: GameMap = {
+    id: `temp-${Date.now()}`,
+    name: "Untitled Map",
+    width: 32,
+    height: 24,
+    tileSize: 32,
+    layers: [
+      { id: '1', name: 'Background', visible: true, locked: false, tiles: [], opacity: 100 },
+      { id: '2', name: 'Terrain', visible: true, locked: false, tiles: [], opacity: 100 },
+      { id: '3', name: 'Objects', visible: true, locked: false, tiles: [], opacity: 100 },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
   const [state, setState] = useState<EditorState>({
-    currentMap: {
-      name: "Untitled Map",
-      width: 32,
-      height: 24,
-      tileSize: 32,
-      layers: [
-        { id: '1', name: 'Background', visible: true, locked: false, tiles: [], opacity: 100 },
-        { id: '2', name: 'Terrain', visible: true, locked: false, tiles: [], opacity: 100 },
-        { id: '3', name: 'Objects', visible: true, locked: false, tiles: [], opacity: 100 },
-      ],
-    },
+    currentMap: initialMap,
     activeTool: 'pencil',
     activeLayerId: '2',
     selectedTileColor: '#3b82f6',
     zoom: 100,
-    history: [],
-    historyIndex: -1,
+    viewportOffset: { x: 0, y: 0 },
+    selectedTiles: [],
+    history: [initialMap],
+    historyIndex: 0,
   });
 
-  const saveToHistory = useCallback((newMap: Omit<GameMap, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const saveToHistory = useCallback((newMap: GameMap) => {
     setState(prev => {
+      const updatedMap = {
+        ...newMap,
+        updatedAt: new Date().toISOString(),
+      };
       const newHistory = prev.history.slice(0, prev.historyIndex + 1);
-      newHistory.push(newMap);
+      newHistory.push(updatedMap);
       return {
         ...prev,
+        currentMap: updatedMap,
         history: newHistory,
         historyIndex: newHistory.length - 1,
       };
@@ -86,6 +106,76 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   const setZoom = useCallback((zoom: number) => {
     setState(prev => ({ ...prev, zoom }));
   }, []);
+
+  const setViewportOffset = useCallback((offset: { x: number; y: number }) => {
+    setState(prev => ({ ...prev, viewportOffset: offset }));
+  }, []);
+
+  const panViewport = useCallback((deltaX: number, deltaY: number) => {
+    setState(prev => ({
+      ...prev,
+      viewportOffset: {
+        x: prev.viewportOffset.x + deltaX,
+        y: prev.viewportOffset.y + deltaY,
+      },
+    }));
+  }, []);
+
+  const selectTile = useCallback((layerId: string, x: number, y: number) => {
+    setState(prev => {
+      const existing = prev.selectedTiles.find(
+        t => t.layerId === layerId && t.x === x && t.y === y
+      );
+      if (existing) {
+        return {
+          ...prev,
+          selectedTiles: prev.selectedTiles.filter(t => t !== existing),
+        };
+      }
+      return {
+        ...prev,
+        selectedTiles: [...prev.selectedTiles, { layerId, x, y }],
+      };
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setState(prev => ({ ...prev, selectedTiles: [] }));
+  }, []);
+
+  const moveSelectedTiles = useCallback((deltaX: number, deltaY: number) => {
+    setState(prev => {
+      if (!prev.currentMap || prev.selectedTiles.length === 0) return prev;
+
+      const newLayers = prev.currentMap.layers.map(layer => {
+        const tilesToMove = prev.selectedTiles.filter(t => t.layerId === layer.id);
+        if (tilesToMove.length === 0) return layer;
+
+        const movedTiles = tilesToMove.map(t => {
+          const tile = layer.tiles.find(tile => tile.x === t.x && tile.y === t.y);
+          return tile ? { ...tile, x: tile.x + deltaX, y: tile.y + deltaY } : null;
+        }).filter(Boolean) as Tile[];
+
+        const otherTiles = layer.tiles.filter(
+          tile => !tilesToMove.some(t => t.x === tile.x && t.y === tile.y)
+        );
+
+        return { ...layer, tiles: [...otherTiles, ...movedTiles] };
+      });
+
+      const newMap = { ...prev.currentMap, layers: newLayers };
+      saveToHistory(newMap);
+
+      return {
+        ...prev,
+        selectedTiles: prev.selectedTiles.map(t => ({
+          ...t,
+          x: t.x + deltaX,
+          y: t.y + deltaY,
+        })),
+      };
+    });
+  }, [saveToHistory]);
 
   const addTile = useCallback((layerId: string, tile: Tile) => {
     setState(prev => {
@@ -250,7 +340,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createNewMap = useCallback((name: string, width: number, height: number, tileSize: number) => {
-    const newMap = {
+    const newMap: GameMap = {
+      id: `temp-${Date.now()}`,
       name,
       width,
       height,
@@ -258,32 +349,66 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       layers: [
         { id: '1', name: 'Background', visible: true, locked: false, tiles: [], opacity: 100 },
       ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     setState(prev => ({
       ...prev,
       currentMap: newMap,
       activeLayerId: '1',
+      viewportOffset: { x: 0, y: 0 },
+      selectedTiles: [],
       history: [newMap],
       historyIndex: 0,
     }));
   }, []);
 
   const loadMap = useCallback((map: GameMap) => {
-    const mapWithoutMeta = {
-      name: map.name,
-      width: map.width,
-      height: map.height,
-      tileSize: map.tileSize,
-      layers: map.layers,
-    };
     setState(prev => ({
       ...prev,
-      currentMap: mapWithoutMeta,
+      currentMap: map,
       activeLayerId: map.layers[0]?.id || null,
-      history: [mapWithoutMeta],
+      viewportOffset: { x: 0, y: 0 },
+      selectedTiles: [],
+      history: [map],
       historyIndex: 0,
     }));
   }, []);
+
+  const saveMap = useCallback(async () => {
+    if (!state.currentMap) return;
+
+    const isTemp = state.currentMap.id.startsWith('temp-');
+    const url = isTemp ? '/api/maps' : `/api/maps/${state.currentMap.id}`;
+    const method = isTemp ? 'POST' : 'PUT';
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: state.currentMap.name,
+          width: state.currentMap.width,
+          height: state.currentMap.height,
+          tileSize: state.currentMap.tileSize,
+          layers: state.currentMap.layers,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save map');
+
+      const savedMap = await response.json();
+      setState(prev => ({
+        ...prev,
+        currentMap: savedMap,
+        history: prev.history.map((m, i) =>
+          i === prev.historyIndex ? savedMap : m
+        ),
+      }));
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
+  }, [state.currentMap]);
 
   const exportMap = useCallback(() => {
     if (!state.currentMap) return '';
@@ -339,6 +464,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     setActiveLayer,
     setSelectedTileColor,
     setZoom,
+    setViewportOffset,
+    panViewport,
     addTile,
     removeTile,
     fillArea,
@@ -347,12 +474,16 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     toggleLayerVisibility,
     toggleLayerLock,
     updateMapSettings,
+    selectTile,
+    clearSelection,
+    moveSelectedTiles,
     undo,
     redo,
     canUndo: state.historyIndex > 0,
     canRedo: state.historyIndex < state.history.length - 1,
     createNewMap,
     loadMap,
+    saveMap,
     exportMap,
     importMap,
   };
