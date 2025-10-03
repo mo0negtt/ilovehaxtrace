@@ -7,6 +7,8 @@ export default function MapCanvasWithTools() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
   const [rectStart, setRectStart] = useState<{ x: number; y: number } | null>(null);
   
   const {
@@ -14,11 +16,17 @@ export default function MapCanvasWithTools() {
     activeTool,
     activeLayerId,
     selectedTileColor,
+    selectedTiles,
     zoom,
+    viewportOffset,
     setZoom,
+    panViewport,
     addTile,
     removeTile,
     fillArea,
+    selectTile,
+    clearSelection,
+    moveSelectedTiles,
   } = useEditor();
 
   const renderCanvas = () => {
@@ -35,6 +43,9 @@ export default function MapCanvasWithTools() {
 
     ctx.fillStyle = 'hsl(0, 0%, 9%)';
     ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+    ctx.save();
+    ctx.translate(viewportOffset.x, viewportOffset.y);
 
     ctx.strokeStyle = 'hsl(0, 0%, 15%)';
     ctx.lineWidth = 1;
@@ -61,6 +72,10 @@ export default function MapCanvasWithTools() {
       if (!layer.visible) return;
       
       layer.tiles.forEach(tile => {
+        const isSelected = selectedTiles.some(
+          t => t.layerId === layer.id && t.x === tile.x && t.y === tile.y
+        );
+
         ctx.fillStyle = tile.color;
         ctx.globalAlpha = layer.opacity / 100;
         ctx.fillRect(
@@ -70,6 +85,17 @@ export default function MapCanvasWithTools() {
           tileSize
         );
         ctx.globalAlpha = 1;
+
+        if (isSelected) {
+          ctx.strokeStyle = '#fbbf24';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(
+            tile.x * tileSize,
+            tile.y * tileSize,
+            tileSize,
+            tileSize
+          );
+        }
       });
     });
 
@@ -80,11 +106,13 @@ export default function MapCanvasWithTools() {
       const height = (mousePos.y - rectStart.y) * tileSize;
       ctx.strokeRect(rectStart.x * tileSize, rectStart.y * tileSize, width, height);
     }
+
+    ctx.restore();
   };
 
   useEffect(() => {
     renderCanvas();
-  }, [currentMap, zoom, mousePos, rectStart, activeTool]);
+  }, [currentMap, zoom, mousePos, rectStart, activeTool, viewportOffset, selectedTiles]);
 
   const getTileCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -92,14 +120,40 @@ export default function MapCanvasWithTools() {
 
     const rect = canvas.getBoundingClientRect();
     const tileSize = currentMap.tileSize * (zoom / 100);
-    const x = Math.floor((e.clientX - rect.left) / tileSize);
-    const y = Math.floor((e.clientY - rect.top) / tileSize);
+    const x = Math.floor((e.clientX - rect.left - viewportOffset.x) / tileSize);
+    const y = Math.floor((e.clientY - rect.top - viewportOffset.y) / tileSize);
 
     if (x < 0 || x >= currentMap.width || y < 0 || y >= currentMap.height) return null;
     return { x, y };
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (activeTool === 'pan') {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    if (activeTool === 'select') {
+      const coords = getTileCoords(e);
+      if (coords && activeLayerId) {
+        selectTile(activeLayerId, coords.x, coords.y);
+      }
+      return;
+    }
+
+    if (activeTool === 'move') {
+      const coords = getTileCoords(e);
+      if (coords) {
+        setRectStart(coords);
+        setIsDrawing(true);
+      }
+      return;
+    }
+
     if (!activeLayerId) return;
 
     const coords = getTileCoords(e);
@@ -122,9 +176,27 @@ export default function MapCanvasWithTools() {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isPanning && panStart) {
+      const deltaX = e.clientX - panStart.x;
+      const deltaY = e.clientY - panStart.y;
+      panViewport(deltaX, deltaY);
+      setPanStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
     const coords = getTileCoords(e);
     if (coords) {
       setMousePos(coords);
+    }
+
+    if (activeTool === 'move' && isDrawing && rectStart && coords) {
+      const deltaX = coords.x - rectStart.x;
+      const deltaY = coords.y - rectStart.y;
+      if (deltaX !== 0 || deltaY !== 0) {
+        moveSelectedTiles(deltaX, deltaY);
+        setRectStart(coords);
+      }
+      return;
     }
 
     if (!isDrawing || !activeLayerId || !coords) return;
@@ -140,6 +212,11 @@ export default function MapCanvasWithTools() {
   };
 
   const handleMouseUp = () => {
+    if (isPanning) {
+      setIsPanning(false);
+      setPanStart(null);
+    }
+
     if (rectStart && activeLayerId && (activeTool === 'rectangle' || activeTool === 'circle')) {
       const layer = currentMap?.layers.find(l => l.id === activeLayerId);
       if (!layer?.locked) {
@@ -176,6 +253,7 @@ export default function MapCanvasWithTools() {
       setRectStart(null);
     }
     setIsDrawing(false);
+    setRectStart(null);
   };
 
   const handleZoomIn = () => {
@@ -191,12 +269,14 @@ export default function MapCanvasWithTools() {
   };
 
   const getCursorStyle = () => {
+    if (isPanning) return 'grabbing';
     switch (activeTool) {
       case 'pencil': return 'crosshair';
       case 'eraser': return 'cell';
       case 'fill': return 'crosshair';
       case 'pan': return 'grab';
       case 'move': return 'move';
+      case 'select': return 'pointer';
       default: return 'crosshair';
     }
   };
