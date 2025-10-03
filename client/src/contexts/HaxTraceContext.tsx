@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { HaxMap, Vertex, Segment } from '@shared/schema';
+import { HaxMap, Vertex, Segment, BackgroundImage } from '@shared/schema';
 
 export type Tool = 'vertex' | 'segment' | 'pan';
 
@@ -14,17 +14,22 @@ interface HaxTraceContextType {
   setHoveredVertex: (index: number | null) => void;
   segmentColor: string;
   setSegmentColor: (color: string) => void;
-  segmentCurve: number;
-  setSegmentCurve: (curve: number) => void;
+  curveType: 'angle' | 'radius' | 'sagitta';
+  setCurveType: (type: 'angle' | 'radius' | 'sagitta') => void;
+  curveValue: number;
+  setCurveValue: (value: number) => void;
   addVertex: (x: number, y: number) => void;
-  addSegment: (v0: number, v1: number, color?: string, curve?: number) => void;
+  addSegment: (v0: number, v1: number, color?: string) => void;
   selectVertex: (index: number) => void;
   clearVertexSelection: () => void;
   selectSegment: (index: number, multiSelect?: boolean) => void;
   clearSegmentSelection: () => void;
   updateVertex: (index: number, x: number, y: number) => void;
-  updateSegmentCurve: (index: number, curve: number) => void;
+  updateSegmentCurve: (index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => void;
   deleteSelectedSegments: () => void;
+  setBackgroundImage: (dataURL: string) => void;
+  updateBackgroundImage: (bgImage: BackgroundImage) => void;
+  removeBackgroundImage: () => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -63,8 +68,9 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
   const [selectedVertices, setSelectedVertices] = useState<number[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [hoveredVertex, setHoveredVertex] = useState<number | null>(null);
-  const [segmentColor, setSegmentColor] = useState<string>('000000');
-  const [segmentCurve, setSegmentCurve] = useState<number>(0);
+  const [segmentColor, setSegmentColor] = useState<string>('ffffff');
+  const [curveType, setCurveType] = useState<'angle' | 'radius' | 'sagitta'>('angle');
+  const [curveValue, setCurveValue] = useState<number>(0);
   
   const [history, setHistory] = useState<HaxMap[]>([defaultMap]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -87,12 +93,17 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     saveHistory(newMap);
   }, [map, saveHistory]);
 
-  const addSegment = useCallback((v0: number, v1: number, color?: string, curve?: number) => {
+  const addSegment = useCallback((v0: number, v1: number, color?: string) => {
     const segment: Segment = {
       v0,
       v1,
       ...(color && { color }),
-      ...(curve !== undefined && { curve }),
+      ...(curveValue !== 0 && {
+        curveData: {
+          type: curveType,
+          value: curveValue,
+        },
+      }),
     };
     const newMap = {
       ...map,
@@ -100,7 +111,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     };
     saveHistory(newMap);
     setSelectedVertices([]);
-  }, [map, saveHistory]);
+  }, [map, saveHistory, curveType, curveValue]);
 
   const selectVertex = useCallback((index: number) => {
     if (currentTool === 'segment') {
@@ -109,14 +120,14 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
         const newSelection = [...prev, index];
         
         if (newSelection.length === 2) {
-          addSegment(newSelection[0], newSelection[1], segmentColor, segmentCurve);
+          addSegment(newSelection[0], newSelection[1], segmentColor);
           return [];
         }
         
         return newSelection;
       });
     }
-  }, [currentTool, addSegment, segmentColor, segmentCurve]);
+  }, [currentTool, addSegment, segmentColor]);
 
   const clearVertexSelection = useCallback(() => {
     setSelectedVertices([]);
@@ -146,9 +157,12 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     saveHistory(newMap);
   }, [map, saveHistory]);
 
-  const updateSegmentCurve = useCallback((index: number, curve: number) => {
+  const updateSegmentCurve = useCallback((index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => {
     const newSegments = [...map.segments];
-    newSegments[index] = { ...newSegments[index], curve };
+    newSegments[index] = {
+      ...newSegments[index],
+      curveData: { type, value },
+    };
     const newMap = {
       ...map,
       segments: newSegments,
@@ -167,6 +181,46 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     saveHistory(newMap);
     setSelectedSegments([]);
   }, [map, selectedSegments, saveHistory]);
+
+  const setBackgroundImage = useCallback((dataURL: string) => {
+    const newMap = {
+      ...map,
+      bg: {
+        ...map.bg,
+        image: {
+          dataURL,
+          opacity: 0.5,
+          scale: 1,
+          offsetX: 0,
+          offsetY: 0,
+          fitMode: 'center' as const,
+          locked: false,
+        },
+      },
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const updateBackgroundImage = useCallback((bgImage: BackgroundImage) => {
+    const newMap = {
+      ...map,
+      bg: {
+        ...map.bg,
+        image: bgImage,
+      },
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const removeBackgroundImage = useCallback(() => {
+    const newMap = {
+      ...map,
+      bg: {
+        color: map.bg.color,
+      },
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
@@ -219,8 +273,10 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     setHoveredVertex,
     segmentColor,
     setSegmentColor,
-    segmentCurve,
-    setSegmentCurve,
+    curveType,
+    setCurveType,
+    curveValue,
+    setCurveValue,
     addVertex,
     addSegment,
     selectVertex,
@@ -230,6 +286,9 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     updateVertex,
     updateSegmentCurve,
     deleteSelectedSegments,
+    setBackgroundImage,
+    updateBackgroundImage,
+    removeBackgroundImage,
     undo,
     redo,
     canUndo: historyIndex > 0,
