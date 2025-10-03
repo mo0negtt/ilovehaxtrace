@@ -16,3 +16,37 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const tileSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  color: z.string(),
+  tileId: z.string().optional(),
+});
+
+export const layerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  visible: z.boolean(),
+  locked: z.boolean(),
+  tiles: z.array(tileSchema),
+  opacity: z.number().min(0).max(100).default(100),
+});
+
+export const mapSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  width: z.number().min(1),
+  height: z.number().min(1),
+  tileSize: z.number().min(1),
+  layers: z.array(layerSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const insertMapSchema = mapSchema.omit({ id: true, createdAt: true, updatedAt: true });
+
+export type Tile = z.infer<typeof tileSchema>;
+export type Layer = z.infer<typeof layerSchema>;
+export type Map = z.infer<typeof mapSchema>;
+export type InsertMap = z.infer<typeof insertMapSchema>;
