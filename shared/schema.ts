@@ -48,5 +48,5 @@ export const insertMapSchema = mapSchema.omit({ id: true, createdAt: true, updat
 
 export type Tile = z.infer<typeof tileSchema>;
 export type Layer = z.infer<typeof layerSchema>;
-export type Map = z.infer<typeof mapSchema>;
+export type GameMap = z.infer<typeof mapSchema>;
 export type InsertMap = z.infer<typeof insertMapSchema>;
