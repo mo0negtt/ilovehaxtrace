@@ -17,20 +17,16 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-export const tileSchema = z.object({
+export const vertexSchema = z.object({
   x: z.number(),
   y: z.number(),
-  color: z.string(),
-  tileId: z.string().optional(),
 });
 
-export const layerSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  visible: z.boolean(),
-  locked: z.boolean(),
-  tiles: z.array(tileSchema),
-  opacity: z.number().min(0).max(100).default(100),
+export const segmentSchema = z.object({
+  v0: z.number(),
+  v1: z.number(),
+  color: z.string().optional(),
+  curve: z.number().optional(),
 });
 
 export const mapSchema = z.object({
@@ -38,15 +34,16 @@ export const mapSchema = z.object({
   name: z.string(),
   width: z.number().min(1),
   height: z.number().min(1),
-  tileSize: z.number().min(1),
-  layers: z.array(layerSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  bg: z.object({
+    color: z.string(),
+  }),
+  vertexes: z.array(vertexSchema),
+  segments: z.array(segmentSchema),
 });
 
-export const insertMapSchema = mapSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const insertMapSchema = mapSchema.omit({ id: true });
 
-export type Tile = z.infer<typeof tileSchema>;
-export type Layer = z.infer<typeof layerSchema>;
-export type GameMap = z.infer<typeof mapSchema>;
+export type Vertex = z.infer<typeof vertexSchema>;
+export type Segment = z.infer<typeof segmentSchema>;
+export type HaxMap = z.infer<typeof mapSchema>;
 export type InsertMap = z.infer<typeof insertMapSchema>;
