@@ -3,13 +3,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Editor from "@/pages/Editor";
+import EditorWithState from "@/pages/EditorWithState";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Editor} />
-      <Route path="/editor" component={Editor} />
+      <Route path="/" component={EditorWithState} />
+      <Route path="/editor" component={EditorWithState} />
     </Switch>
   );
 }
