@@ -1,0 +1,246 @@
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { HaxMap, Vertex, Segment } from '@shared/schema';
+
+export type Tool = 'vertex' | 'segment' | 'pan';
+
+interface HaxTraceContextType {
+  map: HaxMap;
+  setMap: (map: HaxMap) => void;
+  currentTool: Tool;
+  setCurrentTool: (tool: Tool) => void;
+  selectedVertices: number[];
+  selectedSegments: number[];
+  hoveredVertex: number | null;
+  setHoveredVertex: (index: number | null) => void;
+  segmentColor: string;
+  setSegmentColor: (color: string) => void;
+  segmentCurve: number;
+  setSegmentCurve: (curve: number) => void;
+  addVertex: (x: number, y: number) => void;
+  addSegment: (v0: number, v1: number, color?: string, curve?: number) => void;
+  selectVertex: (index: number) => void;
+  clearVertexSelection: () => void;
+  selectSegment: (index: number, multiSelect?: boolean) => void;
+  clearSegmentSelection: () => void;
+  updateVertex: (index: number, x: number, y: number) => void;
+  updateSegmentCurve: (index: number, curve: number) => void;
+  deleteSelectedSegments: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  importMap: (mapData: HaxMap) => void;
+  exportMap: () => HaxMap;
+}
+
+const HaxTraceContext = createContext<HaxTraceContextType | undefined>(undefined);
+
+export const useHaxTrace = () => {
+  const context = useContext(HaxTraceContext);
+  if (!context) {
+    throw new Error('useHaxTrace must be used within HaxTraceProvider');
+  }
+  return context;
+};
+
+interface HaxTraceProviderProps {
+  children: ReactNode;
+}
+
+const defaultMap: HaxMap = {
+  id: '1',
+  name: 'New Stadium',
+  width: 800,
+  height: 600,
+  bg: { color: '#1a1a1a' },
+  vertexes: [],
+  segments: [],
+};
+
+export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
+  const [map, setMapInternal] = useState<HaxMap>(defaultMap);
+  const [currentTool, setCurrentTool] = useState<Tool>('vertex');
+  const [selectedVertices, setSelectedVertices] = useState<number[]>([]);
+  const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
+  const [hoveredVertex, setHoveredVertex] = useState<number | null>(null);
+  const [segmentColor, setSegmentColor] = useState<string>('000000');
+  const [segmentCurve, setSegmentCurve] = useState<number>(0);
+  
+  const [history, setHistory] = useState<HaxMap[]>([defaultMap]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const saveHistory = useCallback((newMap: HaxMap) => {
+    setHistory(prev => [...prev.slice(0, historyIndex + 1), newMap]);
+    setHistoryIndex(prev => prev + 1);
+    setMapInternal(newMap);
+  }, [historyIndex]);
+
+  const setMap = useCallback((newMap: HaxMap) => {
+    saveHistory(newMap);
+  }, [saveHistory]);
+
+  const addVertex = useCallback((x: number, y: number) => {
+    const newMap = {
+      ...map,
+      vertexes: [...map.vertexes, { x, y }],
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const addSegment = useCallback((v0: number, v1: number, color?: string, curve?: number) => {
+    const segment: Segment = {
+      v0,
+      v1,
+      ...(color && { color }),
+      ...(curve !== undefined && { curve }),
+    };
+    const newMap = {
+      ...map,
+      segments: [...map.segments, segment],
+    };
+    saveHistory(newMap);
+    setSelectedVertices([]);
+  }, [map, saveHistory]);
+
+  const selectVertex = useCallback((index: number) => {
+    if (currentTool === 'segment') {
+      setSelectedVertices(prev => {
+        if (prev.includes(index)) return prev;
+        const newSelection = [...prev, index];
+        
+        if (newSelection.length === 2) {
+          addSegment(newSelection[0], newSelection[1], segmentColor, segmentCurve);
+          return [];
+        }
+        
+        return newSelection;
+      });
+    }
+  }, [currentTool, addSegment, segmentColor, segmentCurve]);
+
+  const clearVertexSelection = useCallback(() => {
+    setSelectedVertices([]);
+  }, []);
+
+  const selectSegment = useCallback((index: number, multiSelect: boolean = false) => {
+    if (multiSelect) {
+      setSelectedSegments(prev => 
+        prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+      );
+    } else {
+      setSelectedSegments([index]);
+    }
+  }, []);
+
+  const clearSegmentSelection = useCallback(() => {
+    setSelectedSegments([]);
+  }, []);
+
+  const updateVertex = useCallback((index: number, x: number, y: number) => {
+    const newVertexes = [...map.vertexes];
+    newVertexes[index] = { x, y };
+    const newMap = {
+      ...map,
+      vertexes: newVertexes,
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const updateSegmentCurve = useCallback((index: number, curve: number) => {
+    const newSegments = [...map.segments];
+    newSegments[index] = { ...newSegments[index], curve };
+    const newMap = {
+      ...map,
+      segments: newSegments,
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const deleteSelectedSegments = useCallback(() => {
+    if (selectedSegments.length === 0) return;
+    
+    const newSegments = map.segments.filter((_, index) => !selectedSegments.includes(index));
+    const newMap = {
+      ...map,
+      segments: newSegments,
+    };
+    saveHistory(newMap);
+    setSelectedSegments([]);
+  }, [map, selectedSegments, saveHistory]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(prev => prev - 1);
+      setMapInternal(history[historyIndex - 1]);
+    }
+  }, [historyIndex, history]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(prev => prev + 1);
+      setMapInternal(history[historyIndex + 1]);
+    }
+  }, [historyIndex, history]);
+
+  const importMap = useCallback((mapData: HaxMap) => {
+    const importedMap = {
+      ...mapData,
+      vertexes: mapData.vertexes.map(v => ({ ...v })),
+      segments: mapData.segments.map(s => ({
+        ...s,
+        curve: s.curve ? -s.curve : s.curve,
+      })),
+    };
+    setHistory([importedMap]);
+    setHistoryIndex(0);
+    setMapInternal(importedMap);
+    setSelectedVertices([]);
+    setSelectedSegments([]);
+  }, []);
+
+  const exportMap = useCallback(() => {
+    return {
+      ...map,
+      segments: map.segments.map(s => ({
+        ...s,
+        curve: s.curve ? -s.curve : s.curve,
+      })),
+    };
+  }, [map]);
+
+  const value: HaxTraceContextType = {
+    map,
+    setMap,
+    currentTool,
+    setCurrentTool,
+    selectedVertices,
+    selectedSegments,
+    hoveredVertex,
+    setHoveredVertex,
+    segmentColor,
+    setSegmentColor,
+    segmentCurve,
+    setSegmentCurve,
+    addVertex,
+    addSegment,
+    selectVertex,
+    clearVertexSelection,
+    selectSegment,
+    clearSegmentSelection,
+    updateVertex,
+    updateSegmentCurve,
+    deleteSelectedSegments,
+    undo,
+    redo,
+    canUndo: historyIndex > 0,
+    canRedo: historyIndex < history.length - 1,
+    importMap,
+    exportMap,
+  };
+
+  return (
+    <HaxTraceContext.Provider value={value}>
+      {children}
+    </HaxTraceContext.Provider>
+  );
+};
