@@ -1,10 +1,12 @@
-import { Vertex, Segment } from "@shared/schema";
+import { Vertex, Segment, BackgroundImage } from "@shared/schema";
+import { calculateCircularArc, distanceToCircularArc, CircularArcData } from "./circularArc";
 
 export interface RendererState {
   offsetX: number;
   offsetY: number;
   zoom: number;
   isPanning: false | { startX: number; startY: number; startOffsetX: number; startOffsetY: number };
+  backgroundImage: HTMLImageElement | null;
 }
 
 export class CanvasRenderer {
@@ -22,6 +24,7 @@ export class CanvasRenderer {
       offsetY: 0,
       zoom: 1,
       isPanning: false,
+      backgroundImage: null,
     };
     this.updateCanvasSize();
   }
@@ -32,6 +35,22 @@ export class CanvasRenderer {
     this.canvas.width = rect.width * dpr;
     this.canvas.height = rect.height * dpr;
     this.ctx.scale(dpr, dpr);
+  }
+
+  loadBackgroundImage(dataURL: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        this.state.backgroundImage = img;
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = dataURL;
+    });
+  }
+
+  clearBackgroundImage() {
+    this.state.backgroundImage = null;
   }
 
   screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
@@ -60,6 +79,45 @@ export class CanvasRenderer {
     const rect = this.canvas.getBoundingClientRect();
     this.ctx.fillStyle = bgColor;
     this.ctx.fillRect(0, 0, rect.width, rect.height);
+  }
+
+  drawBackgroundImage(bgImage: BackgroundImage) {
+    if (!this.state.backgroundImage) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const img = this.state.backgroundImage;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = bgImage.opacity;
+
+    const canvasCenterX = rect.width / 2;
+    const canvasCenterY = rect.height / 2;
+
+    let drawWidth = img.width * bgImage.scale * this.state.zoom;
+    let drawHeight = img.height * bgImage.scale * this.state.zoom;
+    let drawX = canvasCenterX + this.state.offsetX + bgImage.offsetX * this.state.zoom - drawWidth / 2;
+    let drawY = canvasCenterY + this.state.offsetY + bgImage.offsetY * this.state.zoom - drawHeight / 2;
+
+    if (bgImage.fitMode === 'fit') {
+      const scaleX = rect.width / img.width;
+      const scaleY = rect.height / img.height;
+      const scale = Math.min(scaleX, scaleY) * bgImage.scale;
+      drawWidth = img.width * scale;
+      drawHeight = img.height * scale;
+      drawX = canvasCenterX - drawWidth / 2 + bgImage.offsetX;
+      drawY = canvasCenterY - drawHeight / 2 + bgImage.offsetY;
+    } else if (bgImage.fitMode === 'cover') {
+      const scaleX = rect.width / img.width;
+      const scaleY = rect.height / img.height;
+      const scale = Math.max(scaleX, scaleY) * bgImage.scale;
+      drawWidth = img.width * scale;
+      drawHeight = img.height * scale;
+      drawX = canvasCenterX - drawWidth / 2 + bgImage.offsetX;
+      drawY = canvasCenterY - drawHeight / 2 + bgImage.offsetY;
+    }
+
+    this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+    this.ctx.restore();
   }
 
   drawGrid(width: number, height: number) {
@@ -131,6 +189,34 @@ export class CanvasRenderer {
     this.ctx.strokeStyle = segment.color ? `#${segment.color}` : '#ffffff';
     this.ctx.lineWidth = isSelected ? 3 : 2;
 
+    if (segment.curveData && segment.curveData.value !== 0) {
+      const arcData = calculateCircularArc(v0, v1, segment.curveData.type, segment.curveData.value);
+      
+      if (arcData) {
+        const screenCenter = this.worldToScreen(arcData.center.x, arcData.center.y);
+        const screenRadius = arcData.radius * this.state.zoom;
+
+        this.ctx.beginPath();
+        this.ctx.arc(
+          screenCenter.x,
+          screenCenter.y,
+          screenRadius,
+          arcData.startAngle,
+          arcData.endAngle,
+          arcData.anticlockwise
+        );
+        this.ctx.stroke();
+
+        if (isSelected) {
+          this.ctx.fillStyle = '#3b82f6';
+          this.ctx.beginPath();
+          this.ctx.arc(screenCenter.x, screenCenter.y, 4, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+        return;
+      }
+    }
+
     if (segment.curve && segment.curve !== 0) {
       const curve = segment.curve;
       const dx = end.x - start.x;
@@ -184,6 +270,17 @@ export class CanvasRenderer {
       
       if (!v0 || !v1) continue;
 
+      if (segment.curveData && segment.curveData.value !== 0) {
+        const arcData = calculateCircularArc(v0, v1, segment.curveData.type, segment.curveData.value);
+        if (arcData) {
+          const distance = distanceToCircularArc(world, arcData);
+          if (distance <= threshold) {
+            return i;
+          }
+          continue;
+        }
+      }
+
       if (segment.curve && segment.curve !== 0) {
         const curve = segment.curve;
         const dx = v1.x - v0.x;
@@ -197,10 +294,10 @@ export class CanvasRenderer {
         const controlY = (v0.y + v1.y) / 2 + normalY * curve;
 
         for (let t = 0; t <= 1; t += 0.05) {
-          const x = Math.pow(1 - t, 2) * v0.x + 2 * (1 - t) * t * controlX + Math.pow(t, 2) * v1.x;
-          const y = Math.pow(1 - t, 2) * v0.y + 2 * (1 - t) * t * controlY + Math.pow(t, 2) * v1.y;
+          const px = Math.pow(1 - t, 2) * v0.x + 2 * (1 - t) * t * controlX + Math.pow(t, 2) * v1.x;
+          const py = Math.pow(1 - t, 2) * v0.y + 2 * (1 - t) * t * controlY + Math.pow(t, 2) * v1.y;
           
-          const dist = Math.sqrt(Math.pow(world.x - x, 2) + Math.pow(world.y - y, 2));
+          const dist = Math.sqrt(Math.pow(world.x - px, 2) + Math.pow(world.y - py, 2));
           if (dist <= threshold) {
             return i;
           }

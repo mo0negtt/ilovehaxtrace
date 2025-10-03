@@ -19,17 +19,21 @@ export const HaxTraceCanvas = () => {
     selectSegment,
     clearSegmentSelection,
     updateVertex,
-    updateSegmentCurve,
   } = useHaxTrace();
 
   const [isDraggingVertex, setIsDraggingVertex] = useState<number | null>(null);
-  const [isDraggingSegment, setIsDraggingSegment] = useState<{ index: number; startX: number; initialCurve: number } | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
     
     const renderer = new CanvasRenderer(canvasRef.current);
     rendererRef.current = renderer;
+
+    if (map.bg.image) {
+      renderer.loadBackgroundImage(map.bg.image.dataURL).then(() => {
+        render();
+      });
+    }
 
     const handleResize = () => {
       renderer.updateCanvasSize();
@@ -46,11 +50,30 @@ export const HaxTraceCanvas = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    if (map.bg.image) {
+      renderer.loadBackgroundImage(map.bg.image.dataURL).then(() => {
+        render();
+      });
+    } else {
+      renderer.clearBackgroundImage();
+      render();
+    }
+  }, [map.bg.image?.dataURL]);
+
   const render = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
 
     renderer.clear(map.bg.color);
+    
+    if (map.bg.image) {
+      renderer.drawBackgroundImage(map.bg.image);
+    }
+    
     renderer.drawGrid(map.width, map.height);
 
     map.segments.forEach((segment, index) => {
@@ -81,17 +104,6 @@ export const HaxTraceCanvas = () => {
       const vertexIndex = renderer.getVertexAt(x, y, map.vertexes);
       if (vertexIndex !== null) {
         setIsDraggingVertex(vertexIndex);
-        return;
-      }
-
-      const segmentIndex = renderer.getSegmentAt(x, y, map.segments, map.vertexes);
-      if (segmentIndex !== null) {
-        const segment = map.segments[segmentIndex];
-        setIsDraggingSegment({
-          index: segmentIndex,
-          startX: x,
-          initialCurve: segment.curve || 0,
-        });
         return;
       }
     }
@@ -140,15 +152,6 @@ export const HaxTraceCanvas = () => {
       return;
     }
 
-    if (isDraggingSegment !== null) {
-      const deltaX = x - isDraggingSegment.startX;
-      const curveChange = deltaX * 0.5;
-      const newCurve = Math.max(-500, Math.min(500, isDraggingSegment.initialCurve + curveChange));
-      updateSegmentCurve(isDraggingSegment.index, Math.round(newCurve));
-      render();
-      return;
-    }
-
     if (renderer.state.isPanning) {
       renderer.updatePan(x, y);
       render();
@@ -159,14 +162,13 @@ export const HaxTraceCanvas = () => {
     if (vertexIndex !== hoveredVertex) {
       setHoveredVertex(vertexIndex);
     }
-  }, [isDraggingVertex, isDraggingSegment, map, hoveredVertex, setHoveredVertex, updateVertex, updateSegmentCurve, render]);
+  }, [isDraggingVertex, map, hoveredVertex, setHoveredVertex, updateVertex, render]);
 
   const handleMouseUp = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
 
     setIsDraggingVertex(null);
-    setIsDraggingSegment(null);
     renderer.endPan();
   }, []);
 

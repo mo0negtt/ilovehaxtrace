@@ -3,10 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Plus, 
-  Minus, 
-  RotateCcw, 
   MousePointer, 
   Hand, 
   Undo2, 
@@ -23,8 +21,10 @@ export const HaxTraceToolbar = () => {
     setCurrentTool,
     segmentColor,
     setSegmentColor,
-    segmentCurve,
-    setSegmentCurve,
+    curveType,
+    setCurveType,
+    curveValue,
+    setCurveValue,
     undo,
     redo,
     canUndo,
@@ -89,7 +89,8 @@ export const HaxTraceToolbar = () => {
           onClick={() => setCurrentTool('segment')}
           title="Add Segment (S)"
         >
-          <Plus className="w-4 h-4" />
+          <MousePointer className="w-4 h-4 mr-1" />
+          Segment
         </Button>
         <Button
           data-testid="button-tool-pan"
@@ -124,18 +125,32 @@ export const HaxTraceToolbar = () => {
         </div>
       </div>
 
+      <Separator orientation="vertical" className="h-8" />
+
       <div className="flex items-center gap-2">
-        <Label htmlFor="segment-curve" className="text-sm">Curve:</Label>
+        <Label htmlFor="curve-type" className="text-sm">Curve:</Label>
+        <Select value={curveType} onValueChange={(value: 'angle' | 'radius' | 'sagitta') => setCurveType(value)}>
+          <SelectTrigger id="curve-type" data-testid="select-curve-type" className="w-24 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="angle">Angle</SelectItem>
+            <SelectItem value="radius">Radius</SelectItem>
+            <SelectItem value="sagitta">Sagitta</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
-          id="segment-curve"
-          data-testid="input-segment-curve"
+          id="curve-value"
+          data-testid="input-curve-value"
           type="number"
-          value={segmentCurve}
-          onChange={(e) => setSegmentCurve(Number(e.target.value))}
+          value={curveValue}
+          onChange={(e) => setCurveValue(Number(e.target.value))}
           className="w-20 h-8 text-sm"
-          min={-500}
-          max={500}
+          step={curveType === 'angle' ? 5 : 1}
         />
+        <span className="text-xs text-muted-foreground">
+          {curveType === 'angle' ? '°' : curveType === 'radius' ? 'px' : 'h'}
+        </span>
       </div>
 
       <Separator orientation="vertical" className="h-8" />
