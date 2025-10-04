@@ -15,10 +15,15 @@ export function chordLength(v0: Vertex, v1: Vertex): number {
 }
 
 export function angleToRadius(angleInDegrees: number, chord: number): number {
-  const angleInRadians = (Math.abs(angleInDegrees) * Math.PI) / 180;
-  if (Math.abs(angleInRadians) < 0.001) return Infinity;
-  const radius = chord / (2 * Math.sin(angleInRadians / 2));
-  return angleInDegrees >= 0 ? radius : -radius;
+  const clampedAngle = Math.max(-340, Math.min(340, angleInDegrees));
+  const angleInRadians = (clampedAngle * Math.PI) / 180;
+  const absAngleRad = Math.abs(angleInRadians);
+  
+  if (absAngleRad < 0.001) return Infinity;
+  if (absAngleRad >= Math.PI * 2 - 0.001) return Infinity;
+  
+  const radius = chord / (2 * Math.sin(absAngleRad / 2));
+  return clampedAngle >= 0 ? radius : -radius;
 }
 
 export function radiusToAngle(radius: number, chord: number): number {
@@ -64,26 +69,31 @@ export function calculateCircularArc(
   const chord = chordLength(v0, v1);
   if (chord < 0.001) return null;
 
-  let radius: number;
   let angleInDegrees: number;
   
   switch (curveType) {
     case 'angle':
-      angleInDegrees = curveValue;
-      radius = angleToRadius(angleInDegrees, chord);
+      angleInDegrees = Math.max(-340, Math.min(340, curveValue));
       break;
     case 'radius':
-      radius = curveValue;
-      angleInDegrees = radiusToAngle(radius, chord);
+      angleInDegrees = radiusToAngle(curveValue, chord);
       break;
     case 'sagitta':
-      radius = sagittaToRadius(curveValue, chord);
+      const radius = sagittaToRadius(curveValue, chord);
       angleInDegrees = radiusToAngle(radius, chord);
       break;
   }
 
-  const absRadius = Math.abs(radius);
-  if (!isFinite(absRadius) || absRadius < chord / 2) {
+  const angleRad = (angleInDegrees * Math.PI) / 180;
+  const absAngleRad = Math.abs(angleRad);
+  
+  if (absAngleRad < 0.001) return null;
+  if (absAngleRad >= Math.PI * 2 - 0.001) return null;
+
+  const clampedAngleRad = Math.max(0.001, Math.min(Math.PI * 2 - 0.001, absAngleRad));
+  const radius = chord / (2 * Math.sin(clampedAngleRad / 2));
+  
+  if (!isFinite(radius) || radius < chord / 2) {
     return null;
   }
 
@@ -96,22 +106,22 @@ export function calculateCircularArc(
   const normalX = -dy / chord;
   const normalY = dx / chord;
 
-  const sign = radius >= 0 ? 1 : -1;
-  const distanceToCenter = sign * Math.sqrt(absRadius * absRadius - (chord * chord) / 4);
+  const h = radius * Math.cos(clampedAngleRad / 2);
+  const sign = angleRad >= 0 ? 1 : -1;
 
-  const centerX = midX + normalX * distanceToCenter;
-  const centerY = midY + normalY * distanceToCenter;
+  const centerX = midX + normalX * h * sign;
+  const centerY = midY + normalY * h * sign;
 
-  const angle0 = Math.atan2(v0.y - centerY, v0.x - centerX);
-  const angle1 = Math.atan2(v1.y - centerY, v1.x - centerX);
+  const startAngle = Math.atan2(v0.y - centerY, v0.x - centerX);
+  const endAngle = Math.atan2(v1.y - centerY, v1.x - centerX);
 
-  const anticlockwise = radius < 0;
+  const anticlockwise = angleRad < 0;
 
   return {
     center: { x: centerX, y: centerY },
-    radius: absRadius,
-    startAngle: angle0,
-    endAngle: angle1,
+    radius: radius,
+    startAngle,
+    endAngle,
     anticlockwise,
   };
 }

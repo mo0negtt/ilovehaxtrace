@@ -413,9 +413,11 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
           }
         }
         
+        const clampedValue = curveValue ? Math.max(-340, Math.min(340, curveValue)) : curveValue;
+        
         return {
           ...s,
-          curve: curveValue ? -curveValue : curveValue,
+          curve: clampedValue ? -clampedValue : clampedValue,
         };
       }),
     };
