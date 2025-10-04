@@ -80,6 +80,12 @@ const defaultMap: HaxMap = {
     { v0: 0, v1: 2, curve: -90.56402280711765 },
     { v0: 2, v1: 0, curve: -90.56402280711765 }
   ],
+  discs: [],
+  goals: [],
+  planes: [],
+  joints: [],
+  traits: {},
+  canBeStored: true,
 };
 
 export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
@@ -415,11 +421,27 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
         
         const clampedValue = curveValue ? Math.max(-340, Math.min(340, curveValue)) : curveValue;
         
-        return {
-          ...s,
-          curve: clampedValue ? -clampedValue : clampedValue,
+        const exportSegment: any = {
+          v0: s.v0,
+          v1: s.v1,
         };
+        
+        if (clampedValue) {
+          exportSegment.curve = -clampedValue;
+        }
+        
+        if (s.color) {
+          exportSegment.color = s.color;
+        }
+        
+        return exportSegment;
       }),
+      discs: map.discs || [],
+      goals: map.goals || [],
+      planes: map.planes || [],
+      joints: map.joints || [],
+      traits: map.traits || {},
+      canBeStored: map.canBeStored ?? true,
     };
   }, [map]);
 
