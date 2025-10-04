@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useHaxTrace } from '@/contexts/HaxTraceContext';
 import { CanvasRenderer } from '@/lib/canvasRenderer';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+  ContextMenuSeparator,
+} from '@/components/ui/context-menu';
+import { Copy, Trash2, Move } from 'lucide-react';
 
 export const HaxTraceCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,9 +27,18 @@ export const HaxTraceCanvas = () => {
     selectSegment,
     clearSegmentSelection,
     updateVertex,
+    gridVisible,
+    gridSize,
+    zoom,
+    setZoom,
+    deleteVertex,
+    duplicateVertex,
+    duplicateSegment,
+    deleteSelectedSegments,
   } = useHaxTrace();
 
   const [isDraggingVertex, setIsDraggingVertex] = useState<number | null>(null);
+  const [contextMenuTarget, setContextMenuTarget] = useState<{ type: 'vertex' | 'segment'; index: number } | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -64,6 +81,13 @@ export const HaxTraceCanvas = () => {
     }
   }, [map.bg.image?.dataURL]);
 
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+    renderer.state.zoom = zoom;
+    render();
+  }, [zoom]);
+
   const render = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
@@ -74,7 +98,9 @@ export const HaxTraceCanvas = () => {
       renderer.drawBackgroundImage(map.bg.image);
     }
     
-    renderer.drawGrid(map.width, map.height);
+    if (gridVisible) {
+      renderer.drawGrid(map.width, map.height, gridSize);
+    }
 
     map.segments.forEach((segment, index) => {
       const isSelected = selectedSegments.includes(index);
@@ -86,7 +112,7 @@ export const HaxTraceCanvas = () => {
       const isHovered = hoveredVertex === index;
       renderer.drawVertex(vertex, isSelected, isHovered);
     });
-  }, [map, selectedVertices, selectedSegments, hoveredVertex]);
+  }, [map, selectedVertices, selectedSegments, hoveredVertex, gridVisible, gridSize]);
 
   useEffect(() => {
     render();
@@ -100,12 +126,23 @@ export const HaxTraceCanvas = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    const vertexIndex = renderer.getVertexAt(x, y, map.vertexes);
+    
     if (e.button === 2) {
-      const vertexIndex = renderer.getVertexAt(x, y, map.vertexes);
       if (vertexIndex !== null) {
+        setContextMenuTarget({ type: 'vertex', index: vertexIndex });
         setIsDraggingVertex(vertexIndex);
         return;
       }
+      
+      const segmentIndex = renderer.getSegmentAt(x, y, map.segments, map.vertexes);
+      if (segmentIndex !== null) {
+        setContextMenuTarget({ type: 'segment', index: segmentIndex });
+        return;
+      }
+      
+      setContextMenuTarget(null);
+      return;
     }
 
     if (e.button === 0) {
@@ -115,13 +152,16 @@ export const HaxTraceCanvas = () => {
       }
 
       if (currentTool === 'vertex') {
+        if (vertexIndex !== null) {
+          setIsDraggingVertex(vertexIndex);
+          return;
+        }
         const world = renderer.screenToWorld(x, y);
         addVertex(Math.round(world.x), Math.round(world.y));
         return;
       }
 
       if (currentTool === 'segment') {
-        const vertexIndex = renderer.getVertexAt(x, y, map.vertexes);
         if (vertexIndex !== null) {
           selectVertex(vertexIndex);
           return;
@@ -186,8 +226,9 @@ export const HaxTraceCanvas = () => {
     } else {
       renderer.zoomOut();
     }
+    setZoom(renderer.state.zoom);
     render();
-  }, [render]);
+  }, [render, setZoom]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -203,17 +244,79 @@ export const HaxTraceCanvas = () => {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      data-testid="canvas-haxtrace"
-      className="w-full h-full cursor-crosshair"
-      style={{ cursor: currentTool === 'pan' ? 'grab' : 'crosshair' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onContextMenu={handleContextMenu}
-      onWheel={handleWheel}
-    />
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <canvas
+          ref={canvasRef}
+          data-testid="canvas-haxtrace"
+          className="w-full h-full cursor-crosshair"
+          style={{ cursor: currentTool === 'pan' ? 'grab' : 'crosshair' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onContextMenu={handleContextMenu}
+          onWheel={handleWheel}
+        />
+      </ContextMenuTrigger>
+      <ContextMenuContent data-testid="context-menu-canvas">
+        {contextMenuTarget?.type === 'vertex' && (
+          <>
+            <ContextMenuItem
+              data-testid="context-menu-duplicate-vertex"
+              onClick={() => {
+                duplicateVertex(contextMenuTarget.index);
+                setContextMenuTarget(null);
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Duplicate Vertex
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              data-testid="context-menu-delete-vertex"
+              onClick={() => {
+                deleteVertex(contextMenuTarget.index);
+                setContextMenuTarget(null);
+              }}
+              className="text-destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Vertex
+            </ContextMenuItem>
+          </>
+        )}
+        {contextMenuTarget?.type === 'segment' && (
+          <>
+            <ContextMenuItem
+              data-testid="context-menu-duplicate-segment"
+              onClick={() => {
+                duplicateSegment(contextMenuTarget.index);
+                setContextMenuTarget(null);
+              }}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Duplicate Segment
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              data-testid="context-menu-delete-segment"
+              onClick={() => {
+                selectSegment(contextMenuTarget.index);
+                deleteSelectedSegments();
+                setContextMenuTarget(null);
+              }}
+              className="text-destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Segment
+            </ContextMenuItem>
+          </>
+        )}
+        {!contextMenuTarget && (
+          <ContextMenuItem disabled>No selection</ContextMenuItem>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 };

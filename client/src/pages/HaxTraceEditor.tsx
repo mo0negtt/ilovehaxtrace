@@ -3,6 +3,7 @@ import { HaxTraceCanvas } from '@/components/HaxTraceCanvas';
 import { HaxTraceToolbar } from '@/components/HaxTraceToolbar';
 import { HaxTraceCurveEditor } from '@/components/HaxTraceCurveEditor';
 import { BackgroundImagePanel } from '@/components/BackgroundImagePanel';
+import { ViewControls } from '@/components/ViewControls';
 
 function EditorContent() {
   const { map, setBackgroundImage, updateBackgroundImage, removeBackgroundImage } = useHaxTrace();
@@ -15,7 +16,8 @@ function EditorContent() {
           <HaxTraceCanvas />
           <HaxTraceCurveEditor />
         </div>
-        <div className="w-80 border-l p-4 overflow-y-auto">
+        <div className="w-80 border-l p-4 overflow-y-auto space-y-4">
+          <ViewControls />
           <BackgroundImagePanel
             backgroundImage={map.bg.image}
             onImageLoad={setBackgroundImage}

@@ -120,12 +120,11 @@ export class CanvasRenderer {
     this.ctx.restore();
   }
 
-  drawGrid(width: number, height: number) {
+  drawGrid(width: number, height: number, gridSize: number = 50) {
     this.ctx.strokeStyle = '#333333';
     this.ctx.lineWidth = 1;
     this.ctx.setLineDash([5, 5]);
 
-    const gridSize = 50;
     const startX = Math.floor(-width / 2 / gridSize) * gridSize;
     const endX = Math.ceil(width / 2 / gridSize) * gridSize;
     const startY = Math.floor(-height / 2 / gridSize) * gridSize;
