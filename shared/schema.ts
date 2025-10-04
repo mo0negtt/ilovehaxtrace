@@ -56,6 +56,12 @@ export const mapSchema = z.object({
   }),
   vertexes: z.array(vertexSchema),
   segments: z.array(segmentSchema),
+  discs: z.array(z.any()).optional().default([]),
+  goals: z.array(z.any()).optional().default([]),
+  planes: z.array(z.any()).optional().default([]),
+  joints: z.array(z.any()).optional().default([]),
+  traits: z.record(z.any()).optional().default({}),
+  canBeStored: z.boolean().optional().default(true),
 });
 
 export const insertMapSchema = mapSchema.omit({ id: true });
