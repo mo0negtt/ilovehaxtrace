@@ -81,7 +81,18 @@ const defaultMap: HaxMap = {
 };
 
 export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
-  const [map, setMapInternal] = useState<HaxMap>(defaultMap);
+  const [map, setMapInternal] = useState<HaxMap>(() => {
+    const saved = localStorage.getItem('haxtraceMap');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved map:', e);
+        return defaultMap;
+      }
+    }
+    return defaultMap;
+  });
   const [currentTool, setCurrentTool] = useState<Tool>('vertex');
   const [selectedVertices, setSelectedVertices] = useState<number[]>([]);
   const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
@@ -99,13 +110,26 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
   });
   const [zoom, setZoomInternal] = useState<number>(1);
   
-  const [history, setHistory] = useState<HaxMap[]>([defaultMap]);
+  const initialHistory = (() => {
+    const saved = localStorage.getItem('haxtraceMap');
+    if (saved) {
+      try {
+        return [JSON.parse(saved)];
+      } catch (e) {
+        return [defaultMap];
+      }
+    }
+    return [defaultMap];
+  })();
+  
+  const [history, setHistory] = useState<HaxMap[]>(initialHistory);
   const [historyIndex, setHistoryIndex] = useState(0);
 
   const saveHistory = useCallback((newMap: HaxMap) => {
     setHistory(prev => [...prev.slice(0, historyIndex + 1), newMap]);
     setHistoryIndex(prev => prev + 1);
     setMapInternal(newMap);
+    localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
   }, [historyIndex]);
 
   const setMap = useCallback((newMap: HaxMap) => {
@@ -289,15 +313,19 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
 
   const undo = useCallback(() => {
     if (historyIndex > 0) {
+      const newMap = history[historyIndex - 1];
       setHistoryIndex(prev => prev - 1);
-      setMapInternal(history[historyIndex - 1]);
+      setMapInternal(newMap);
+      localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
     }
   }, [historyIndex, history]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
+      const newMap = history[historyIndex + 1];
       setHistoryIndex(prev => prev + 1);
-      setMapInternal(history[historyIndex + 1]);
+      setMapInternal(newMap);
+      localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
     }
   }, [historyIndex, history]);
 
@@ -313,6 +341,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     setHistory([importedMap]);
     setHistoryIndex(0);
     setMapInternal(importedMap);
+    localStorage.setItem('haxtraceMap', JSON.stringify(importedMap));
     setSelectedVertices([]);
     setSelectedSegments([]);
   }, []);
