@@ -378,7 +378,6 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
       vertexes: mapData.vertexes.map(v => ({ ...v })),
       segments: mapData.segments.map(s => ({
         ...s,
-        curve: s.curve ? -s.curve : s.curve,
       })),
     };
     setHistory([importedMap]);
@@ -427,7 +426,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
         };
         
         if (clampedValue) {
-          exportSegment.curve = -clampedValue;
+          exportSegment.curve = clampedValue;
         }
         
         if (s.color) {
