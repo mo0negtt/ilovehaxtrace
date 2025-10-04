@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
   MousePointer, 
   Hand, 
@@ -13,7 +14,10 @@ import {
   Upload,
   Trash2,
   ExternalLink,
-  Info
+  Info,
+  Grid3x3,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { useRef } from 'react';
 
@@ -228,6 +232,7 @@ export const HaxTraceToolbar = () => {
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">
+        <ThemeToggle />
         <Button
           data-testid="button-open-haxpuck"
           size="sm"

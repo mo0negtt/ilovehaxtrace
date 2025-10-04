@@ -18,6 +18,12 @@ interface HaxTraceContextType {
   setCurveType: (type: 'angle' | 'radius' | 'sagitta') => void;
   curveValue: number;
   setCurveValue: (value: number) => void;
+  gridVisible: boolean;
+  toggleGrid: () => void;
+  gridSize: number;
+  setGridSize: (size: number) => void;
+  zoom: number;
+  setZoom: (zoom: number) => void;
   addVertex: (x: number, y: number) => void;
   addSegment: (v0: number, v1: number, color?: string) => void;
   selectVertex: (index: number) => void;
@@ -27,6 +33,9 @@ interface HaxTraceContextType {
   updateVertex: (index: number, x: number, y: number) => void;
   updateSegmentCurve: (index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => void;
   deleteSelectedSegments: () => void;
+  deleteVertex: (index: number) => void;
+  duplicateVertex: (index: number) => void;
+  duplicateSegment: (index: number) => void;
   setBackgroundImage: (dataURL: string) => void;
   updateBackgroundImage: (bgImage: BackgroundImage) => void;
   removeBackgroundImage: () => void;
@@ -80,6 +89,15 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
   const [segmentColor, setSegmentColor] = useState<string>('ffffff');
   const [curveType, setCurveType] = useState<'angle' | 'radius' | 'sagitta'>('angle');
   const [curveValue, setCurveValue] = useState<number>(0);
+  const [gridVisible, setGridVisible] = useState<boolean>(() => {
+    const saved = localStorage.getItem('gridVisible');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [gridSize, setGridSize] = useState<number>(() => {
+    const saved = localStorage.getItem('gridSize');
+    return saved ? Number(saved) : 50;
+  });
+  const [zoom, setZoomInternal] = useState<number>(1);
   
   const [history, setHistory] = useState<HaxMap[]>([defaultMap]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -191,6 +209,44 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     setSelectedSegments([]);
   }, [map, selectedSegments, saveHistory]);
 
+  const deleteVertex = useCallback((index: number) => {
+    const newVertexes = map.vertexes.filter((_, i) => i !== index);
+    const newSegments = map.segments
+      .filter(s => s.v0 !== index && s.v1 !== index)
+      .map(s => ({
+        ...s,
+        v0: s.v0 > index ? s.v0 - 1 : s.v0,
+        v1: s.v1 > index ? s.v1 - 1 : s.v1,
+      }));
+    const newMap = {
+      ...map,
+      vertexes: newVertexes,
+      segments: newSegments,
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const duplicateVertex = useCallback((index: number) => {
+    const vertex = map.vertexes[index];
+    if (!vertex) return;
+    const newVertex = { x: vertex.x + 20, y: vertex.y + 20 };
+    const newMap = {
+      ...map,
+      vertexes: [...map.vertexes, newVertex],
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
+  const duplicateSegment = useCallback((index: number) => {
+    const segment = map.segments[index];
+    if (!segment) return;
+    const newMap = {
+      ...map,
+      segments: [...map.segments, { ...segment }],
+    };
+    saveHistory(newMap);
+  }, [map, saveHistory]);
+
   const setBackgroundImage = useCallback((dataURL: string) => {
     const newMap = {
       ...map,
@@ -271,6 +327,23 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     };
   }, [map]);
 
+  const toggleGrid = useCallback(() => {
+    setGridVisible(prev => {
+      const newValue = !prev;
+      localStorage.setItem('gridVisible', JSON.stringify(newValue));
+      return newValue;
+    });
+  }, []);
+
+  const handleSetGridSize = useCallback((size: number) => {
+    setGridSize(size);
+    localStorage.setItem('gridSize', String(size));
+  }, []);
+
+  const setZoom = useCallback((newZoom: number) => {
+    setZoomInternal(Math.max(0.1, Math.min(5, newZoom)));
+  }, []);
+
   const value: HaxTraceContextType = {
     map,
     setMap,
@@ -286,6 +359,12 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     setCurveType,
     curveValue,
     setCurveValue,
+    gridVisible,
+    toggleGrid,
+    gridSize,
+    setGridSize: handleSetGridSize,
+    zoom,
+    setZoom,
     addVertex,
     addSegment,
     selectVertex,
@@ -295,6 +374,9 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     updateVertex,
     updateSegmentCurve,
     deleteSelectedSegments,
+    deleteVertex,
+    duplicateVertex,
+    duplicateSegment,
     setBackgroundImage,
     updateBackgroundImage,
     removeBackgroundImage,
