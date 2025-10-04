@@ -372,7 +372,6 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
       vertexes: mapData.vertexes.map(v => ({ ...v })),
       segments: mapData.segments.map(s => ({
         ...s,
-        curve: s.curve ? -s.curve : s.curve,
       })),
     };
     setHistory([importedMap]);
