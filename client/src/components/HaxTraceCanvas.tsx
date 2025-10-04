@@ -26,6 +26,7 @@ export const HaxTraceCanvas = () => {
     selectVertex,
     selectSegment,
     clearSegmentSelection,
+    clearVertexSelection,
     updateVertex,
     gridVisible,
     gridSize,
@@ -35,10 +36,13 @@ export const HaxTraceCanvas = () => {
     duplicateVertex,
     duplicateSegment,
     deleteSelectedSegments,
+    deleteSelectedVertices,
   } = useHaxTrace();
 
   const [isDraggingVertex, setIsDraggingVertex] = useState<number | null>(null);
   const [contextMenuTarget, setContextMenuTarget] = useState<{ type: 'vertex' | 'segment'; index: number } | null>(null);
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null);
+  const [marqueeCurrent, setMarqueeCurrent] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -112,7 +116,18 @@ export const HaxTraceCanvas = () => {
       const isHovered = hoveredVertex === index;
       renderer.drawVertex(vertex, isSelected, isHovered);
     });
-  }, [map, selectedVertices, selectedSegments, hoveredVertex, gridVisible, gridSize]);
+
+    if (marqueeStart && marqueeCurrent && canvasRef.current) {
+      const ctx = renderer['ctx'];
+      ctx.strokeStyle = '#3b82f6';
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+      ctx.lineWidth = 2;
+      const width = marqueeCurrent.x - marqueeStart.x;
+      const height = marqueeCurrent.y - marqueeStart.y;
+      ctx.fillRect(marqueeStart.x, marqueeStart.y, width, height);
+      ctx.strokeRect(marqueeStart.x, marqueeStart.y, width, height);
+    }
+  }, [map, selectedVertices, selectedSegments, hoveredVertex, gridVisible, gridSize, marqueeStart, marqueeCurrent]);
 
   useEffect(() => {
     render();
@@ -153,11 +168,22 @@ export const HaxTraceCanvas = () => {
 
       if (currentTool === 'vertex') {
         if (vertexIndex !== null) {
-          setIsDraggingVertex(vertexIndex);
+          const multiSelect = e.shiftKey || e.ctrlKey;
+          selectVertex(vertexIndex, multiSelect);
+          if (!multiSelect) {
+            setIsDraggingVertex(vertexIndex);
+          }
           return;
         }
-        const world = renderer.screenToWorld(x, y);
-        addVertex(Math.round(world.x), Math.round(world.y));
+        
+        if (!e.shiftKey && !e.ctrlKey) {
+          const world = renderer.screenToWorld(x, y);
+          addVertex(Math.round(world.x), Math.round(world.y));
+          clearVertexSelection();
+        } else {
+          setMarqueeStart({ x, y });
+          setMarqueeCurrent({ x, y });
+        }
         return;
       }
 
@@ -169,13 +195,13 @@ export const HaxTraceCanvas = () => {
 
         const segmentIndex = renderer.getSegmentAt(x, y, map.segments, map.vertexes);
         if (segmentIndex !== null) {
-          selectSegment(segmentIndex, e.shiftKey);
-        } else if (!e.shiftKey) {
+          selectSegment(segmentIndex, e.shiftKey || e.ctrlKey);
+        } else if (!e.shiftKey && !e.ctrlKey) {
           clearSegmentSelection();
         }
       }
     }
-  }, [currentTool, map, addVertex, selectVertex, selectSegment, clearSegmentSelection]);
+  }, [currentTool, map, addVertex, selectVertex, selectSegment, clearSegmentSelection, clearVertexSelection]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const renderer = rendererRef.current;
@@ -184,6 +210,11 @@ export const HaxTraceCanvas = () => {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    if (marqueeStart) {
+      setMarqueeCurrent({ x, y });
+      return;
+    }
 
     if (isDraggingVertex !== null) {
       const world = renderer.screenToWorld(x, y);
@@ -202,15 +233,43 @@ export const HaxTraceCanvas = () => {
     if (vertexIndex !== hoveredVertex) {
       setHoveredVertex(vertexIndex);
     }
-  }, [isDraggingVertex, map, hoveredVertex, setHoveredVertex, updateVertex, render]);
+  }, [isDraggingVertex, map, hoveredVertex, setHoveredVertex, updateVertex, render, marqueeStart]);
 
   const handleMouseUp = useCallback(() => {
     const renderer = rendererRef.current;
     if (!renderer) return;
 
+    if (marqueeStart && marqueeCurrent) {
+      const minX = Math.min(marqueeStart.x, marqueeCurrent.x);
+      const maxX = Math.max(marqueeStart.x, marqueeCurrent.x);
+      const minY = Math.min(marqueeStart.y, marqueeCurrent.y);
+      const maxY = Math.max(marqueeStart.y, marqueeCurrent.y);
+      
+      const worldMin = renderer.screenToWorld(minX, minY);
+      const worldMax = renderer.screenToWorld(maxX, maxY);
+      
+      const verticesInBox: number[] = [];
+      map.vertexes.forEach((vertex, index) => {
+        if (vertex.x >= worldMin.x && vertex.x <= worldMax.x &&
+            vertex.y >= worldMin.y && vertex.y <= worldMax.y) {
+          if (!selectedVertices.includes(index)) {
+            verticesInBox.push(index);
+          }
+        }
+      });
+      
+      if (verticesInBox.length > 0) {
+        verticesInBox.forEach(index => selectVertex(index, true));
+      }
+      
+      setMarqueeStart(null);
+      setMarqueeCurrent(null);
+      return;
+    }
+
     setIsDraggingVertex(null);
     renderer.endPan();
-  }, []);
+  }, [marqueeStart, marqueeCurrent, map.vertexes, selectedVertices, selectVertex]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

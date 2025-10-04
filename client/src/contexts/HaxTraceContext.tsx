@@ -26,13 +26,14 @@ interface HaxTraceContextType {
   setZoom: (zoom: number) => void;
   addVertex: (x: number, y: number) => void;
   addSegment: (v0: number, v1: number, color?: string) => void;
-  selectVertex: (index: number) => void;
+  selectVertex: (index: number, multiSelect?: boolean) => void;
   clearVertexSelection: () => void;
   selectSegment: (index: number, multiSelect?: boolean) => void;
   clearSegmentSelection: () => void;
   updateVertex: (index: number, x: number, y: number) => void;
   updateSegmentCurve: (index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => void;
   deleteSelectedSegments: () => void;
+  deleteSelectedVertices: () => void;
   deleteVertex: (index: number) => void;
   duplicateVertex: (index: number) => void;
   duplicateSegment: (index: number) => void;
@@ -164,7 +165,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     setSelectedVertices([]);
   }, [map, saveHistory, curveType, curveValue]);
 
-  const selectVertex = useCallback((index: number) => {
+  const selectVertex = useCallback((index: number, multiSelect: boolean = false) => {
     if (currentTool === 'segment') {
       setSelectedVertices(prev => {
         if (prev.includes(index)) return prev;
@@ -177,6 +178,14 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
         
         return newSelection;
       });
+    } else if (currentTool === 'vertex') {
+      if (multiSelect) {
+        setSelectedVertices(prev => 
+          prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+        );
+      } else {
+        setSelectedVertices([index]);
+      }
     }
   }, [currentTool, addSegment, segmentColor]);
 
@@ -249,6 +258,33 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     };
     saveHistory(newMap);
   }, [map, saveHistory]);
+
+  const deleteSelectedVertices = useCallback(() => {
+    if (selectedVertices.length === 0) return;
+    
+    const sortedIndices = [...selectedVertices].sort((a, b) => b - a);
+    let newVertexes = [...map.vertexes];
+    let newSegments = [...map.segments];
+    
+    sortedIndices.forEach(index => {
+      newVertexes = newVertexes.filter((_, i) => i !== index);
+      newSegments = newSegments
+        .filter(s => s.v0 !== index && s.v1 !== index)
+        .map(s => ({
+          ...s,
+          v0: s.v0 > index ? s.v0 - 1 : s.v0,
+          v1: s.v1 > index ? s.v1 - 1 : s.v1,
+        }));
+    });
+    
+    const newMap = {
+      ...map,
+      vertexes: newVertexes,
+      segments: newSegments,
+    };
+    saveHistory(newMap);
+    setSelectedVertices([]);
+  }, [map, selectedVertices, saveHistory]);
 
   const duplicateVertex = useCallback((index: number) => {
     const vertex = map.vertexes[index];
@@ -403,6 +439,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
     updateVertex,
     updateSegmentCurve,
     deleteSelectedSegments,
+    deleteSelectedVertices,
     deleteVertex,
     duplicateVertex,
     duplicateSegment,
