@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { HaxMap, Vertex, Segment, BackgroundImage } from '@shared/schema';
+import { chordLength, radiusToAngle, sagittaToAngle } from '@/lib/circularArc';
 
 export type Tool = 'vertex' | 'segment' | 'pan';
 
@@ -385,10 +386,38 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
   const exportMap = useCallback(() => {
     return {
       ...map,
-      segments: map.segments.map(s => ({
-        ...s,
-        curve: s.curve ? -s.curve : s.curve,
-      })),
+      segments: map.segments.map(s => {
+        let curveValue = s.curve;
+        
+        if (s.curveData && s.curveData.value !== 0) {
+          const v0 = map.vertexes[s.v0];
+          const v1 = map.vertexes[s.v1];
+          
+          if (v0 && v1) {
+            const chord = chordLength(v0, v1);
+            let angleInDegrees = 0;
+            
+            switch (s.curveData.type) {
+              case 'angle':
+                angleInDegrees = s.curveData.value;
+                break;
+              case 'radius':
+                angleInDegrees = radiusToAngle(s.curveData.value, chord);
+                break;
+              case 'sagitta':
+                angleInDegrees = sagittaToAngle(s.curveData.value, chord);
+                break;
+            }
+            
+            curveValue = angleInDegrees;
+          }
+        }
+        
+        return {
+          ...s,
+          curve: curveValue ? -curveValue : curveValue,
+        };
+      }),
     };
   }, [map]);
 
