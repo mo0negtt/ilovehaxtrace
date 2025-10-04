@@ -166,13 +166,13 @@ export const HaxTraceCanvas = () => {
           selectVertex(vertexIndex);
           return;
         }
-      }
 
-      const segmentIndex = renderer.getSegmentAt(x, y, map.segments, map.vertexes);
-      if (segmentIndex !== null) {
-        selectSegment(segmentIndex, e.shiftKey);
-      } else if (!e.shiftKey) {
-        clearSegmentSelection();
+        const segmentIndex = renderer.getSegmentAt(x, y, map.segments, map.vertexes);
+        if (segmentIndex !== null) {
+          selectSegment(segmentIndex, e.shiftKey);
+        } else if (!e.shiftKey) {
+          clearSegmentSelection();
+        }
       }
     }
   }, [currentTool, map, addVertex, selectVertex, selectSegment, clearSegmentSelection]);
