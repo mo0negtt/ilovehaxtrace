@@ -87,7 +87,7 @@ export const HaxTraceCurveEditor = () => {
   const getSliderConfig = () => {
     switch (curveData.type) {
       case 'angle':
-        return { min: -180, max: 180, step: 1 };
+        return { min: -340, max: 340, step: 1 };
       case 'radius':
         return { min: -1000, max: 1000, step: 1 };
       case 'sagitta':
