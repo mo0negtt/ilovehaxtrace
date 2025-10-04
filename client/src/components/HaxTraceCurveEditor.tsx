@@ -80,7 +80,10 @@ export const HaxTraceCurveEditor = () => {
   };
 
   const handleValueChange = (newValue: number) => {
-    const finalValue = isFinite(newValue) ? newValue : 0;
+    let finalValue = isFinite(newValue) ? newValue : 0;
+    if (curveData.type === 'angle') {
+      finalValue = Math.max(-340, Math.min(340, finalValue));
+    }
     updateSegmentCurve(segmentIndex, curveData.type, finalValue);
   };
 
@@ -149,6 +152,11 @@ export const HaxTraceCurveEditor = () => {
         <div className="text-xs text-muted-foreground space-y-1">
           <p>Chord length: {Math.round(chord)}px</p>
           <p>Direction: {direction}</p>
+          {curveData.type === 'angle' && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Límite: ±340°. Si |curva| &gt; 180° se dibuja el arco mayor.
+            </p>
+          )}
         </div>
       </div>
     </Card>
