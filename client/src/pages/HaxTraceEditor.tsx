@@ -7,7 +7,18 @@ import { ViewControls } from '@/components/ViewControls';
 import { useEffect } from 'react';
 
 function EditorContent() {
-  const { map, setBackgroundImage, updateBackgroundImage, removeBackgroundImage, undo, redo } = useHaxTrace();
+  const { 
+    map, 
+    setBackgroundImage, 
+    updateBackgroundImage, 
+    removeBackgroundImage, 
+    undo, 
+    redo,
+    selectedVertices,
+    selectedSegments,
+    deleteSelectedVertices,
+    deleteSelectedSegments
+  } = useHaxTrace();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,12 +35,19 @@ function EditorContent() {
           e.preventDefault();
           redo();
         }
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputField) {
+        e.preventDefault();
+        if (selectedVertices.length > 0) {
+          deleteSelectedVertices();
+        } else if (selectedSegments.length > 0) {
+          deleteSelectedSegments();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, selectedVertices, selectedSegments, deleteSelectedVertices, deleteSelectedSegments]);
 
   return (
     <div className="flex flex-col h-screen bg-background">
