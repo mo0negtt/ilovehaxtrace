@@ -11,7 +11,9 @@ import {
   Redo2,
   Download,
   Upload,
-  Trash2
+  Trash2,
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { useRef } from 'react';
 
@@ -222,6 +224,31 @@ export const HaxTraceToolbar = () => {
           </Button>
         </>
       )}
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-1">
+        <Button
+          data-testid="button-open-haxpuck"
+          size="sm"
+          variant="ghost"
+          onClick={() => window.open('https://mo0negtt.github.io/haxpuck/', '_blank')}
+          title="Open HaxPuck"
+        >
+          <ExternalLink className="w-4 h-4 mr-1" />
+          Open HaxPuck
+        </Button>
+        <Button
+          data-testid="button-credits"
+          size="sm"
+          variant="ghost"
+          onClick={() => alert('Credits:\n\n@mo0negtt\n@mush')}
+          title="Credits"
+        >
+          <Info className="w-4 h-4 mr-1" />
+          Credits
+        </Button>
+      </div>
     </div>
   );
 };
