@@ -262,7 +262,7 @@ export const HaxTraceToolbar = () => {
           <DialogHeader>
             <DialogTitle>Credits</DialogTitle>
             <DialogDescription>
-              HaxTrace Map Editor
+              iLoveHax
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -270,7 +270,6 @@ export const HaxTraceToolbar = () => {
               <p className="text-lg font-semibold">Created by</p>
               <div className="flex flex-col gap-2">
                 <p className="text-muted-foreground">@mo0negtt</p>
-                <p className="text-muted-foreground">@mush</p>
               </div>
             </div>
           </div>
