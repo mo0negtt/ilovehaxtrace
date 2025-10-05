@@ -1,507 +1,282 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { HaxMap, Vertex, Segment, BackgroundImage } from '@shared/schema';
-import { chordLength, radiusToAngle, sagittaToAngle } from '@/lib/circularArc';
+import { useHaxTrace } from '@/contexts/HaxTraceContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { 
+  MousePointer, 
+  Hand, 
+  Undo2, 
+  Redo2,
+  Download,
+  Upload,
+  Trash2,
+  ExternalLink,
+  Info,
+  Grid3x3,
+  ZoomIn,
+  ZoomOut
+} from 'lucide-react';
+import { useRef, useState } from 'react';
 
-export type Tool = 'vertex' | 'segment' | 'pan';
-
-interface HaxTraceContextType {
-  map: HaxMap;
-  setMap: (map: HaxMap) => void;
-  currentTool: Tool;
-  setCurrentTool: (tool: Tool) => void;
-  selectedVertices: number[];
-  selectedSegments: number[];
-  hoveredVertex: number | null;
-  setHoveredVertex: (index: number | null) => void;
-  segmentColor: string;
-  setSegmentColor: (color: string) => void;
-  curveType: 'angle' | 'radius' | 'sagitta';
-  setCurveType: (type: 'angle' | 'radius' | 'sagitta') => void;
-  curveValue: number;
-  setCurveValue: (value: number) => void;
-  gridVisible: boolean;
-  toggleGrid: () => void;
-  gridSize: number;
-  setGridSize: (size: number) => void;
-  zoom: number;
-  setZoom: (zoom: number) => void;
-  addVertex: (x: number, y: number) => void;
-  addSegment: (v0: number, v1: number, color?: string) => void;
-  selectVertex: (index: number, multiSelect?: boolean) => void;
-  clearVertexSelection: () => void;
-  selectSegment: (index: number, multiSelect?: boolean) => void;
-  clearSegmentSelection: () => void;
-  updateVertex: (index: number, x: number, y: number) => void;
-  updateSegmentCurve: (index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => void;
-  deleteSelectedSegments: () => void;
-  deleteSelectedVertices: () => void;
-  deleteVertex: (index: number) => void;
-  duplicateVertex: (index: number) => void;
-  duplicateSegment: (index: number) => void;
-  setBackgroundImage: (dataURL: string) => void;
-  updateBackgroundImage: (bgImage: BackgroundImage) => void;
-  removeBackgroundImage: () => void;
-  undo: () => void;
-  redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  importMap: (mapData: HaxMap) => void;
-  exportMap: () => HaxMap;
-}
-
-const HaxTraceContext = createContext<HaxTraceContextType | undefined>(undefined);
-
-export const useHaxTrace = () => {
-  const context = useContext(HaxTraceContext);
-  if (!context) {
-    throw new Error('useHaxTrace must be used within HaxTraceProvider');
-  }
-  return context;
-};
-
-interface HaxTraceProviderProps {
-  children: ReactNode;
-}
-
-const defaultMap: HaxMap = {
-  id: '1',
-  name: 'iLoveHax',
-  width: 400,
-  height: 200,
-  bg: { color: '#0f0f0fff' },
-  vertexes: [
-  ],
-  segments: [
-  ],
-  discs: [],
-  goals: [],
-  planes: [],
-  joints: [],
-  traits: {},
-  canBeStored: true,
-};
-
-export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
-  const [map, setMapInternal] = useState<HaxMap>(() => {
-    const saved = localStorage.getItem('haxtraceMap');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to parse saved map:', e);
-        return defaultMap;
-      }
-    }
-    return defaultMap;
-  });
-  const [currentTool, setCurrentTool] = useState<Tool>('vertex');
-  const [selectedVertices, setSelectedVertices] = useState<number[]>([]);
-  const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
-  const [hoveredVertex, setHoveredVertex] = useState<number | null>(null);
-  const [segmentColor, setSegmentColor] = useState<string>('ffffff');
-  const [curveType, setCurveType] = useState<'angle' | 'radius' | 'sagitta'>('angle');
-  const [curveValue, setCurveValue] = useState<number>(0);
-  const [gridVisible, setGridVisible] = useState<boolean>(() => {
-    const saved = localStorage.getItem('gridVisible');
-    return saved ? JSON.parse(saved) : true;
-  });
-  const [gridSize, setGridSize] = useState<number>(() => {
-    const saved = localStorage.getItem('gridSize');
-    return saved ? Number(saved) : 50;
-  });
-  const [zoom, setZoomInternal] = useState<number>(1);
-  
-  const initialHistory = (() => {
-    const saved = localStorage.getItem('haxtraceMap');
-    if (saved) {
-      try {
-        return [JSON.parse(saved)];
-      } catch (e) {
-        return [defaultMap];
-      }
-    }
-    return [defaultMap];
-  })();
-  
-  const [history, setHistory] = useState<HaxMap[]>(initialHistory);
-  const [historyIndex, setHistoryIndex] = useState(0);
-
-  const saveHistory = useCallback((newMap: HaxMap) => {
-    setHistory(prev => [...prev.slice(0, historyIndex + 1), newMap]);
-    setHistoryIndex(prev => prev + 1);
-    setMapInternal(newMap);
-    localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
-  }, [historyIndex]);
-
-  const setMap = useCallback((newMap: HaxMap) => {
-    saveHistory(newMap);
-  }, [saveHistory]);
-
-  const addVertex = useCallback((x: number, y: number) => {
-    const newMap = {
-      ...map,
-      vertexes: [...map.vertexes, { x, y }],
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const addSegment = useCallback((v0: number, v1: number, color?: string) => {
-    const segment: Segment = {
-      v0,
-      v1,
-      ...(color && { color }),
-      ...(curveValue !== 0 && {
-        curveData: {
-          type: curveType,
-          value: curveValue,
-        },
-      }),
-    };
-    const newMap = {
-      ...map,
-      segments: [...map.segments, segment],
-    };
-    saveHistory(newMap);
-    setSelectedVertices([]);
-  }, [map, saveHistory, curveType, curveValue]);
-
-  const selectVertex = useCallback((index: number, multiSelect: boolean = false) => {
-    if (currentTool === 'segment') {
-      setSelectedVertices(prev => {
-        if (prev.includes(index)) return prev;
-        const newSelection = [...prev, index];
-        
-        if (newSelection.length === 2) {
-          addSegment(newSelection[0], newSelection[1], segmentColor);
-          return [];
-        }
-        
-        return newSelection;
-      });
-    } else if (currentTool === 'vertex') {
-      if (multiSelect) {
-        setSelectedVertices(prev => 
-          prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
-        );
-      } else {
-        setSelectedVertices([index]);
-      }
-    }
-  }, [currentTool, addSegment, segmentColor]);
-
-  const clearVertexSelection = useCallback(() => {
-    setSelectedVertices([]);
-  }, []);
-
-  const selectSegment = useCallback((index: number, multiSelect: boolean = false) => {
-    if (multiSelect) {
-      setSelectedSegments(prev => 
-        prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
-      );
-    } else {
-      setSelectedSegments([index]);
-    }
-  }, []);
-
-  const clearSegmentSelection = useCallback(() => {
-    setSelectedSegments([]);
-  }, []);
-
-  const updateVertex = useCallback((index: number, x: number, y: number) => {
-    const newVertexes = [...map.vertexes];
-    newVertexes[index] = { x, y };
-    const newMap = {
-      ...map,
-      vertexes: newVertexes,
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const updateSegmentCurve = useCallback((index: number, type: 'angle' | 'radius' | 'sagitta', value: number) => {
-    const newSegments = [...map.segments];
-    newSegments[index] = {
-      ...newSegments[index],
-      curveData: { type, value },
-    };
-    const newMap = {
-      ...map,
-      segments: newSegments,
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const deleteSelectedSegments = useCallback(() => {
-    if (selectedSegments.length === 0) return;
-    
-    const newSegments = map.segments.filter((_, index) => !selectedSegments.includes(index));
-    const newMap = {
-      ...map,
-      segments: newSegments,
-    };
-    saveHistory(newMap);
-    setSelectedSegments([]);
-  }, [map, selectedSegments, saveHistory]);
-
-  const deleteVertex = useCallback((index: number) => {
-    const newVertexes = map.vertexes.filter((_, i) => i !== index);
-    const newSegments = map.segments
-      .filter(s => s.v0 !== index && s.v1 !== index)
-      .map(s => ({
-        ...s,
-        v0: s.v0 > index ? s.v0 - 1 : s.v0,
-        v1: s.v1 > index ? s.v1 - 1 : s.v1,
-      }));
-    const newMap = {
-      ...map,
-      vertexes: newVertexes,
-      segments: newSegments,
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const deleteSelectedVertices = useCallback(() => {
-    if (selectedVertices.length === 0) return;
-    
-    const sortedIndices = [...selectedVertices].sort((a, b) => b - a);
-    let newVertexes = [...map.vertexes];
-    let newSegments = [...map.segments];
-    
-    sortedIndices.forEach(index => {
-      newVertexes = newVertexes.filter((_, i) => i !== index);
-      newSegments = newSegments
-        .filter(s => s.v0 !== index && s.v1 !== index)
-        .map(s => ({
-          ...s,
-          v0: s.v0 > index ? s.v0 - 1 : s.v0,
-          v1: s.v1 > index ? s.v1 - 1 : s.v1,
-        }));
-    });
-    
-    const newMap = {
-      ...map,
-      vertexes: newVertexes,
-      segments: newSegments,
-    };
-    saveHistory(newMap);
-    setSelectedVertices([]);
-  }, [map, selectedVertices, saveHistory]);
-
-  const duplicateVertex = useCallback((index: number) => {
-    const vertex = map.vertexes[index];
-    if (!vertex) return;
-    const newVertex = { x: vertex.x + 20, y: vertex.y + 20 };
-    const newMap = {
-      ...map,
-      vertexes: [...map.vertexes, newVertex],
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const duplicateSegment = useCallback((index: number) => {
-    const segment = map.segments[index];
-    if (!segment) return;
-    const newMap = {
-      ...map,
-      segments: [...map.segments, { ...segment }],
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const setBackgroundImage = useCallback((dataURL: string) => {
-    const newMap = {
-      ...map,
-      bg: {
-        ...map.bg,
-        image: {
-          dataURL,
-          opacity: 0.5,
-          scale: 1,
-          offsetX: 0,
-          offsetY: 0,
-          fitMode: 'center' as const,
-          locked: false,
-        },
-      },
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const updateBackgroundImage = useCallback((bgImage: BackgroundImage) => {
-    const newMap = {
-      ...map,
-      bg: {
-        ...map.bg,
-        image: bgImage,
-      },
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const removeBackgroundImage = useCallback(() => {
-    const newMap = {
-      ...map,
-      bg: {
-        color: map.bg.color,
-      },
-    };
-    saveHistory(newMap);
-  }, [map, saveHistory]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newMap = history[historyIndex - 1];
-      setHistoryIndex(prev => prev - 1);
-      setMapInternal(newMap);
-      localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
-    }
-  }, [historyIndex, history]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newMap = history[historyIndex + 1];
-      setHistoryIndex(prev => prev + 1);
-      setMapInternal(newMap);
-      localStorage.setItem('haxtraceMap', JSON.stringify(newMap));
-    }
-  }, [historyIndex, history]);
-
-  const importMap = useCallback((mapData: HaxMap) => {
-    const importedMap = {
-      ...mapData,
-      vertexes: mapData.vertexes.map(v => ({ ...v })),
-      segments: mapData.segments.map(s => ({
-        ...s,
-      })),
-    };
-    setHistory([importedMap]);
-    setHistoryIndex(0);
-    setMapInternal(importedMap);
-    localStorage.setItem('haxtraceMap', JSON.stringify(importedMap));
-    setSelectedVertices([]);
-    setSelectedSegments([]);
-  }, []);
-
-  const exportMap = useCallback(() => {
-    return {
-      ...map,
-      segments: map.segments.map(s => {
-        let curveValue = s.curve;
-        
-        if (s.curveData && s.curveData.value !== 0) {
-          const v0 = map.vertexes[s.v0];
-          const v1 = map.vertexes[s.v1];
-          
-          if (v0 && v1) {
-            const chord = chordLength(v0, v1);
-            let angleInDegrees = 0;
-            
-            switch (s.curveData.type) {
-              case 'angle':
-                angleInDegrees = s.curveData.value;
-                break;
-              case 'radius':
-                angleInDegrees = radiusToAngle(s.curveData.value, chord);
-                break;
-              case 'sagitta':
-                angleInDegrees = sagittaToAngle(s.curveData.value, chord);
-                break;
-            }
-            
-            curveValue = angleInDegrees;
-          }
-        }
-        
-        const clampedValue = curveValue ? Math.max(-340, Math.min(340, curveValue)) : curveValue;
-        
-        const exportSegment: any = {
-          v0: s.v0,
-          v1: s.v1,
-        };
-        
-        if (clampedValue) {
-          exportSegment.curve = clampedValue;
-        }
-        
-        if (s.color) {
-          exportSegment.color = s.color;
-        }
-        
-        return exportSegment;
-      }),
-      discs: map.discs || [],
-      goals: map.goals || [],
-      planes: map.planes || [],
-      joints: map.joints || [],
-      traits: map.traits || {},
-      canBeStored: map.canBeStored ?? true,
-    };
-  }, [map]);
-
-  const toggleGrid = useCallback(() => {
-    setGridVisible(prev => {
-      const newValue = !prev;
-      localStorage.setItem('gridVisible', JSON.stringify(newValue));
-      return newValue;
-    });
-  }, []);
-
-  const handleSetGridSize = useCallback((size: number) => {
-    setGridSize(size);
-    localStorage.setItem('gridSize', String(size));
-  }, []);
-
-  const setZoom = useCallback((newZoom: number) => {
-    setZoomInternal(Math.max(0.1, Math.min(5, newZoom)));
-  }, []);
-
-  const value: HaxTraceContextType = {
-    map,
-    setMap,
+export const HaxTraceToolbar = () => {
+  const {
     currentTool,
     setCurrentTool,
-    selectedVertices,
-    selectedSegments,
-    hoveredVertex,
-    setHoveredVertex,
     segmentColor,
     setSegmentColor,
     curveType,
     setCurveType,
     curveValue,
     setCurveValue,
-    gridVisible,
-    toggleGrid,
-    gridSize,
-    setGridSize: handleSetGridSize,
-    zoom,
-    setZoom,
-    addVertex,
-    addSegment,
-    selectVertex,
-    clearVertexSelection,
-    selectSegment,
-    clearSegmentSelection,
-    updateVertex,
-    updateSegmentCurve,
-    deleteSelectedSegments,
-    deleteSelectedVertices,
-    deleteVertex,
-    duplicateVertex,
-    duplicateSegment,
-    setBackgroundImage,
-    updateBackgroundImage,
-    removeBackgroundImage,
     undo,
     redo,
-    canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1,
+    canUndo,
+    canRedo,
     importMap,
     exportMap,
+    map,
+    deleteSelectedSegments,
+    selectedSegments,
+  } = useHaxTrace();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [creditsOpen, setCreditsOpen] = useState(false);
+
+  const handleExport = () => {
+    const exportedMap = exportMap();
+    const dataStr = JSON.stringify(exportedMap, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'iLoveHax.hbs';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const mapData = JSON.parse(event.target?.result as string);
+        importMap(mapData);
+      } catch (error) {
+        console.error('Error importing map:', error);
+      }
+    };
+    reader.readAsText(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
-    <HaxTraceContext.Provider value={value}>
-      {children}
-    </HaxTraceContext.Provider>
+    <div className="flex items-center gap-2 p-2 bg-card border-b">
+      <div className="flex items-center gap-1">
+        <Button
+          data-testid="button-tool-vertex"
+          size="sm"
+          variant={currentTool === 'vertex' ? 'default' : 'ghost'}
+          onClick={() => setCurrentTool('vertex')}
+          title="Add Vertex (V)"
+        >
+          <MousePointer className="w-4 h-4" />
+        </Button>
+        <Button
+          data-testid="button-tool-segment"
+          size="sm"
+          variant={currentTool === 'segment' ? 'default' : 'ghost'}
+          onClick={() => setCurrentTool('segment')}
+          title="Add Segment (S)"
+        >
+          <MousePointer className="w-4 h-4 mr-1" />
+          Segment
+        </Button>
+        <Button
+          data-testid="button-tool-pan"
+          size="sm"
+          variant={currentTool === 'pan' ? 'default' : 'ghost'}
+          onClick={() => setCurrentTool('pan')}
+          title="Pan (P)"
+        >
+          <Hand className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <Separator orientation="vertical" className="h-8" />
+
+      <div className="flex items-center gap-2">
+        <Label htmlFor="segment-color" className="text-sm">Color:</Label>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground">#</span>
+          <Input
+            id="segment-color"
+            data-testid="input-segment-color"
+            type="text"
+            value={segmentColor}
+            onChange={(e) => setSegmentColor(e.target.value.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6))}
+            className="w-20 h-8 font-mono text-sm"
+            maxLength={6}
+          />
+          <div 
+            className="w-8 h-8 rounded border" 
+            style={{ backgroundColor: `#${segmentColor}` }}
+          />
+        </div>
+      </div>
+
+      <Separator orientation="vertical" className="h-8" />
+
+      <div className="flex items-center gap-2">
+        <Label htmlFor="curve-type" className="text-sm">Curve:</Label>
+        <Select value={curveType} onValueChange={(value: 'angle' | 'radius' | 'sagitta') => setCurveType(value)}>
+          <SelectTrigger id="curve-type" data-testid="select-curve-type" className="w-24 h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="angle">Angle</SelectItem>
+            <SelectItem value="radius">Radius</SelectItem>
+            <SelectItem value="sagitta">Sagitta</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          id="curve-value"
+          data-testid="input-curve-value"
+          type="number"
+          value={curveValue}
+          onChange={(e) => setCurveValue(Number(e.target.value))}
+          className="w-20 h-8 text-sm"
+          step={curveType === 'angle' ? 5 : 1}
+        />
+        <span className="text-xs text-muted-foreground">
+          {curveType === 'angle' ? '°' : curveType === 'radius' ? 'px' : 'h'}
+        </span>
+      </div>
+
+      <Separator orientation="vertical" className="h-8" />
+
+      <div className="flex items-center gap-1">
+        <Button
+          data-testid="button-undo"
+          size="sm"
+          variant="ghost"
+          onClick={undo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="w-4 h-4" />
+        </Button>
+        <Button
+          data-testid="button-redo"
+          size="sm"
+          variant="ghost"
+          onClick={redo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <Separator orientation="vertical" className="h-8" />
+
+      <div className="flex items-center gap-1">
+        <Button
+          data-testid="button-export"
+          size="sm"
+          variant="ghost"
+          onClick={handleExport}
+          title="Export HBS"
+        >
+          <Download className="w-4 h-4" />
+        </Button>
+        <Button
+          data-testid="button-import"
+          size="sm"
+          variant="ghost"
+          onClick={() => fileInputRef.current?.click()}
+          title="Import HBS"
+        >
+          <Upload className="w-4 h-4" />
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".hbs,.json"
+          onChange={handleImport}
+          className="hidden"
+        />
+      </div>
+
+      {selectedSegments.length > 0 && (
+        <>
+          <Separator orientation="vertical" className="h-8" />
+          <Button
+            data-testid="button-delete-segments"
+            size="sm"
+            variant="ghost"
+            onClick={deleteSelectedSegments}
+            title="Delete Selected Segments"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </>
+      )}
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-1">
+        <ThemeToggle />
+        <Button
+          data-testid="button-open-haxpuck"
+          size="sm"
+          variant="ghost"
+          onClick={() => window.open('https://mo0negtt.github.io/haxpuck/', '_blank')}
+          title="Open HaxPuck"
+        >
+          <ExternalLink className="w-4 h-4 mr-1" />
+          Open HaxPuck
+        </Button>
+        <Button
+          data-testid="button-credits"
+          size="sm"
+          variant="ghost"
+          onClick={() => setCreditsOpen(true)}
+          title="Credits"
+        >
+          <Info className="w-4 h-4 mr-1" />
+          Credits
+        </Button>
+      </div>
+
+      <Dialog open={creditsOpen} onOpenChange={setCreditsOpen}>
+        <DialogContent data-testid="dialog-credits">
+          <DialogHeader>
+            <DialogTitle>Credits</DialogTitle>
+            <DialogDescription>
+              iLoveHax
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold">Created by</p>
+              <div className="flex flex-col gap-2 items-center">
+                <p className="text-muted-foreground">@mo0negtt</p>
+                <p className="text-muted-foreground">@mush</p>
+                <img src="https://i.ibb.co/whCMYMNh/tp-white-1x1.png" alt="Team Packet logo" className="h-14 w-auto mt-2 object-contain max-w-full" loading="lazy" />
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
