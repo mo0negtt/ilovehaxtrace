@@ -270,7 +270,9 @@ export const HaxTraceToolbar = () => {
               <p className="text-lg font-semibold">Created by</p>
               <div className="flex flex-col gap-2 items-center">
                 <p className="text-muted-foreground">@mo0negtt</p>
-                <img src="https://i.ibb.co/wht61fJX/tp-white.png" alt="Team Packet logo" className="h-14 w-auto mt-2 object-contain max-w-full" loading="lazy" />
+                <div className="w-40 h-14 flex items-center justify-center rounded border bg-muted p-1 mt-2">
+                  <img src="https://i.ibb.co/wht61fJX/tp-white.png" alt="Team Packet logo" className="h-12 w-auto object-contain max-w-full" loading="lazy" />
+                </div>
               </div>
             </div>
           </div>
