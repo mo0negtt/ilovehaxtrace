@@ -53,7 +53,7 @@ export const HaxTraceToolbar = () => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${map.name.replace(/\s+/g, '_')}.hbs`;
+  link.download = 'iLoveHax.hbs';
     link.click();
     URL.revokeObjectURL(url);
   };
