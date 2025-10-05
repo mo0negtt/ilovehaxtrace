@@ -361,7 +361,9 @@ export const HaxTraceCanvas = () => {
             <ContextMenuItem
               data-testid="context-menu-delete-segment"
               onClick={() => {
-                selectSegment(contextMenuTarget.index);
+                if (!selectedSegments.includes(contextMenuTarget.index)) {
+                  selectSegment(contextMenuTarget.index);
+                }
                 deleteSelectedSegments();
                 setContextMenuTarget(null);
               }}

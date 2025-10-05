@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
   MousePointer, 
@@ -19,7 +20,7 @@ import {
   ZoomIn,
   ZoomOut
 } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 export const HaxTraceToolbar = () => {
   const {
@@ -43,6 +44,7 @@ export const HaxTraceToolbar = () => {
   } = useHaxTrace();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [creditsOpen, setCreditsOpen] = useState(false);
 
   const handleExport = () => {
     const exportedMap = exportMap();
@@ -247,13 +249,33 @@ export const HaxTraceToolbar = () => {
           data-testid="button-credits"
           size="sm"
           variant="ghost"
-          onClick={() => alert('Credits:\n\n@mo0negtt\n@mush')}
+          onClick={() => setCreditsOpen(true)}
           title="Credits"
         >
           <Info className="w-4 h-4 mr-1" />
           Credits
         </Button>
       </div>
+
+      <Dialog open={creditsOpen} onOpenChange={setCreditsOpen}>
+        <DialogContent data-testid="dialog-credits">
+          <DialogHeader>
+            <DialogTitle>Credits</DialogTitle>
+            <DialogDescription>
+              HaxTrace Map Editor
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold">Created by</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-muted-foreground">@mo0negtt</p>
+                <p className="text-muted-foreground">@mush</p>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -5,9 +5,51 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { chordLength, angleToRadius, angleToSagitta, radiusToAngle, radiusToSagitta, sagittaToAngle, sagittaToRadius, calculateCircularArc } from '@/lib/circularArc';
+import { useState, useRef, useEffect } from 'react';
+import { GripVertical } from 'lucide-react';
 
 export const HaxTraceCurveEditor = () => {
   const { selectedSegments, map, updateSegmentCurve } = useHaxTrace();
+  const [position, setPosition] = useState({ x: 0, y: 80 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        setPosition({
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      setDragStart({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      setIsDragging(true);
+    }
+  };
 
   if (selectedSegments.length === 0) {
     return null;
@@ -15,8 +57,26 @@ export const HaxTraceCurveEditor = () => {
 
   if (selectedSegments.length > 1) {
     return (
-      <Card className="absolute top-20 right-4 p-4 w-64" data-testid="card-curve-editor">
-        <h3 className="text-sm font-medium mb-2">Curve Editor</h3>
+      <Card 
+        ref={cardRef}
+        className="fixed p-4 w-64 cursor-move shadow-lg" 
+        style={{ left: `${position.x}px`, top: `${position.y}px`, right: 'auto' }}
+        data-testid="card-curve-editor"
+      >
+        <div className="flex items-center gap-2 mb-2" onMouseDown={handleMouseDown}>
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          <h3 className="text-sm font-medium">Curve Editor</h3>
+        </div>
+        <div className="flex gap-4 mb-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Vertices:</span>
+            <span>{map.vertexes.length}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="font-medium">Segments:</span>
+            <span>{map.segments.length}</span>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground">
           Multiple segments selected. Select a single segment to edit its curve.
         </p>
@@ -26,6 +86,11 @@ export const HaxTraceCurveEditor = () => {
 
   const segmentIndex = selectedSegments[0];
   const segment = map.segments[segmentIndex];
+  
+  if (!segment) {
+    return null;
+  }
+  
   const curveData = segment.curveData || { type: 'angle' as const, value: 0 };
   
   const v0 = map.vertexes[segment.v0];
@@ -102,8 +167,27 @@ export const HaxTraceCurveEditor = () => {
   const displayValue = isFinite(curveData.value) ? Math.round(curveData.value * 100) / 100 : 0;
 
   return (
-    <Card className="absolute top-20 right-4 p-4 w-64" data-testid="card-curve-editor">
-      <h3 className="text-sm font-medium mb-4">Curve Editor</h3>
+    <Card 
+      ref={cardRef}
+      className="fixed p-4 w-64 shadow-lg" 
+      style={{ left: `${position.x}px`, top: `${position.y}px`, right: 'auto' }}
+      data-testid="card-curve-editor"
+    >
+      <div className="flex items-center gap-2 mb-4 cursor-move" onMouseDown={handleMouseDown}>
+        <GripVertical className="w-4 h-4 text-muted-foreground" />
+        <h3 className="text-sm font-medium">Curve Editor</h3>
+      </div>
+      
+      <div className="flex gap-4 mb-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="font-medium">Vertices:</span>
+          <span>{map.vertexes.length}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="font-medium">Segments:</span>
+          <span>{map.segments.length}</span>
+        </div>
+      </div>
       
       <div className="space-y-4">
         <div className="space-y-2">
