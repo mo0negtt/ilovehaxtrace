@@ -384,6 +384,7 @@ export const HaxTraceProvider = ({ children }: HaxTraceProviderProps) => {
   const exportMap = useCallback(() => {
     return {
       ...map,
+      name: 'iLoveHax',
       segments: map.segments.map(s => {
         let curveValue = s.curve;
         
