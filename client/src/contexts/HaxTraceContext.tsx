@@ -65,20 +65,13 @@ interface HaxTraceProviderProps {
 
 const defaultMap: HaxMap = {
   id: '1',
-  name: 'HaxTrace',
-  width: 420,
+  name: 'iLoveHax',
+  width: 400,
   height: 200,
-  bg: { color: '#718C5A' },
+  bg: { color: '#0f0f0fff' },
   vertexes: [
-    { x: -115, y: -87.9921875 },
-    { x: 74, y: -89.9921875 },
-    { x: 74, y: 108.0078125 }
   ],
   segments: [
-    { v0: 0, v1: 1 },
-    { v0: 1, v1: 2 },
-    { v0: 0, v1: 2, curve: -90.56402280711765 },
-    { v0: 2, v1: 0, curve: -90.56402280711765 }
   ],
   discs: [],
   goals: [],
