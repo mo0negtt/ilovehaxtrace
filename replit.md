@@ -1,8 +1,8 @@
-# ILoveHax Tools
+# HaxTrace Map Editor
 
 ## Overview
 
-ILoveHax Tools is a professional landing page application that serves as a centralized hub for developer tools. The platform showcases two main tools (Emphasize and Editor) along with additional utilities, all presented through a modern, clean interface inspired by iLoveHax and iLoveImg design philosophies. The application emphasizes utility-first design with a focus on quick access to tools, responsive layouts, and comprehensive theming support.
+HaxTrace is a vertex and segment-based map editor for creating Haxball maps. Unlike pixel-based editors, HaxTrace works with geometric primitives (vertices and segments with curves) to build maps for Haxball-style games. The application provides a comprehensive set of tools for vertex placement, segment creation with curves, and map export/import functionality with .hbs format compatibility.
 
 ## User Preferences
 
@@ -12,116 +12,133 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Framework & Build System**
-- React 18+ with TypeScript for type-safe component development
+**Framework & Tooling**
+- React with TypeScript for type-safe component development
 - Vite as the build tool and development server
 - Wouter for lightweight client-side routing
-- Path aliases configured via TypeScript for clean imports (@/, @shared/, @assets/)
+- TanStack Query (React Query) for server state management
 
 **UI Component System**
-- shadcn/ui component library (New York style variant) with Radix UI primitives
-- Tailwind CSS for utility-first styling with custom design tokens
-- CSS variables for theme customization (light/dark mode support)
-- Framer Motion for animations and transitions
-- Component structure follows atomic design principles with reusable UI components
+- shadcn/ui component library with Radix UI primitives
+- Tailwind CSS for styling with custom design tokens
+- Dark-first theme optimized for creative work
+- Custom color palette based on HSL values for consistent theming
 
 **State Management**
-- TanStack Query (React Query) for server state management
-- React Context API for global theme state (ThemeProvider)
-- Local component state with React hooks
+- React Context API (HaxTraceContext) for global editor state
+- Local state management with useState for component-specific data
+- Undo/redo history system implemented in editor context
+- Curve sign inversion for Haxball compatibility on import/export
 
-**Design System**
-- Custom color palette with HSL-based CSS variables
-- Responsive breakpoints using Tailwind's mobile-first approach
-- Custom elevation system (hover-elevate, active-elevate-2 classes)
-- Typography based on Open Sans font family
-- Accessibility compliance targeting WCAG AA standards (4.5:1 contrast ratio)
+**Canvas Rendering**
+- HTML5 Canvas API for map rendering
+- Device pixel ratio handling for sharp rendering on high-DPI displays
+- Vertex and segment-based drawing system
+- Pan and zoom controls for viewport manipulation
+- Quadratic curve rendering for curved segments
 
-### Backend Architecture
+**Tool System**
+- Three core tools: Add Vertex, Add Segment, and Pan
+- Tool state managed centrally through HaxTraceContext
+- Mouse interactions: left-click (add/select), right-click (drag/edit)
+- Keyboard shortcuts for undo/redo (Ctrl+Z, Ctrl+Y)
 
-**Server Framework**
-- Express.js with TypeScript for the HTTP server
-- ES modules (type: "module" in package.json)
-- Middleware-based request pipeline with JSON/URL-encoded body parsing
-- Development mode with Vite middleware integration for HMR
-- Production mode serves static built assets
+### Data Model
 
-**Data Layer**
-- In-memory storage implementation (MemStorage) as the default storage backend
-- Storage interface (IStorage) defines CRUD operations for future database integration
-- Drizzle ORM configured for PostgreSQL with schema definition in shared/schema.ts
-- Database schema includes users table with UUID primary keys
+**Core Data Structures**
+- **Vertex**: Point with world coordinates (x, y)
+- **Segment**: Connection between two vertices with optional color and curve
+  - v0, v1: vertex indices
+  - color: optional hex color (without #)
+  - curve: optional curve value (-500 to 500)
+- **HaxMap**: Complete map definition
+  - id, name, width, height
+  - bg: background color object
+  - vertexes: array of vertices
+  - segments: array of segments
 
-**API Structure**
-- Routes registered through centralized registerRoutes function
-- API endpoints prefixed with /api (currently minimal backend logic)
-- HTTP server created from Express app for potential WebSocket support
+**Important: Curve Compatibility**
+- Internal curve values use one sign convention
+- Export to .hbs: curve sign is inverted (multiplied by -1)
+- Import from .hbs: curve sign is inverted to match internal format
+- This ensures compatibility with Haxball's curve interpretation
 
-### Design Patterns & Architecture Decisions
+### Tools & Interactions
 
-**Monorepo Structure**
-- Client code in `/client` directory (React SPA)
-- Server code in `/server` directory (Express API)
-- Shared code in `/shared` directory (schema definitions, types)
-- Attached assets in `/attached_assets` for static resources
+**Add Vertex Tool**
+- Left-click on canvas to create a new vertex at cursor position
+- Coordinates are rounded to integers in world space
 
-**Development Workflow**
-- Development: Concurrent Vite dev server with Express backend
-- Build: Separate builds for client (Vite) and server (esbuild)
-- Type checking with TypeScript in strict mode
-- Database migrations managed via Drizzle Kit
+**Add Segment Tool**
+- Click on two vertices to create a segment between them
+- Uses color and curve values from toolbar inputs
+- Selected vertices are highlighted in blue
 
-**Component Organization**
-- Presentational components in `/client/src/components`
-- Page components in `/client/src/pages`
-- UI primitives in `/client/src/components/ui` (shadcn/ui)
-- Example components for development/documentation in `/client/src/components/examples`
+**Pan Tool**
+- Left-click and drag to pan the viewport
+- Cursor changes to grab/grabbing
 
-**Styling Strategy**
-- Utility-first with Tailwind CSS
-- Component-scoped variants using class-variance-authority
-- Theme tokens via CSS custom properties for runtime theme switching
-- Custom utility classes for common patterns (hover-elevate, button outlines)
+**Vertex Dragging**
+- Right-click and drag on any vertex to reposition it
+- Updates all connected segments in real-time
 
-**Routing Architecture**
-- Single-page application with Wouter for routing
-- Two main routes: Home (/) and NotFound (404)
-- Future routes can be added to Router component in App.tsx
+**Segment Curve Editing**
+- Select segment by clicking on it (shows curve editor panel)
+- Use slider or input field to adjust curve value
+- Right-click and drag horizontally on segment to adjust curve dynamically
+- Multi-select segments with Shift key
+
+**Zoom Controls**
+- Mouse wheel to zoom in/out
+- Zoom range: 0.1x to 5x
+- Visual feedback with zoom percentage
+
+### Import/Export
+
+**Export HBS**
+- Serializes map to JSON format
+- Inverts curve signs for Haxball compatibility
+- Downloads as .hbs file named after map
+
+**Import HBS**
+- Accepts .hbs or .json files
+- Inverts imported curve signs to match internal format
+- Replaces current map and resets history
+
+### Design System
+
+**Color Palette**
+- Dark mode foundation with carefully calibrated grays
+- Primary accent blue for selections and active states
+- Red vertices, white/colored segments
+- CSS custom properties for dynamic theming
+
+**Component Patterns**
+- Toolbar with tool buttons and controls
+- Floating curve editor panel (appears when segment selected)
+- Canvas with grid overlay for reference
+- Consistent border radius and spacing
 
 ## External Dependencies
 
-### UI & Styling
-- **Radix UI**: Comprehensive set of unstyled, accessible UI primitives (@radix-ui/react-*)
-- **Tailwind CSS**: Utility-first CSS framework with PostCSS and Autoprefixer
-- **Framer Motion**: Animation library for React components
-- **Lucide React**: Icon library for UI elements
-- **cmdk**: Command menu component for keyboard-driven navigation
+### UI & Component Libraries
+- **@radix-ui/react-***: Headless UI primitives for accessible components
+- **shadcn/ui**: Pre-built component patterns using Radix UI
+- **lucide-react**: Icon library for UI elements
 
-### State Management & Data Fetching
-- **TanStack Query**: Server state management and data synchronization
-- **React Hook Form**: Form state management with @hookform/resolvers for validation
-- **Zod**: Schema validation integrated with Drizzle ORM (drizzle-zod)
+### Forms & Validation
+- **zod**: Runtime type validation and schema definition
 
-### Database & ORM
-- **Drizzle ORM**: Type-safe PostgreSQL ORM with schema-first approach
-- **@neondatabase/serverless**: Serverless PostgreSQL driver for Neon
-- **connect-pg-simple**: PostgreSQL session store (for future authentication)
+### Styling & Utilities
+- **tailwindcss**: Utility-first CSS framework
+- **class-variance-authority**: Component variant management
+- **clsx & tailwind-merge**: Conditional class name utilities
 
 ### Development Tools
-- **Vite**: Build tool with plugins for React, error overlay, and Replit integration
-- **TypeScript**: Type system for JavaScript with strict mode enabled
-- **esbuild**: Fast bundler for server-side code in production builds
-- **tsx**: TypeScript execution engine for development server
+- **@replit/vite-plugin-***: Replit-specific development tooling
+- **tsx**: TypeScript execution for development server
 
-### Third-Party Integrations
-- **External Tool Links**: 
-  - Emphasize tool: https://mo0negtt.github.io/ilovehax/
-  - Editor tool: https://mo0negtt.github.io/haxpuck/
-- **PWA Support**: Configured with manifest.json and service worker for offline capability
-- **Font Loading**: Google Fonts (Open Sans) with preconnect optimization
-
-### Future Integration Points
-- PostgreSQL database (Drizzle schema configured, awaiting provisioning)
-- User authentication system (users table schema defined)
-- Session management (connect-pg-simple configured)
-- Additional tool integrations via card-based navigation system
+### Key Configuration Files
+- **vite.config.ts**: Build tool configuration with path aliases
+- **tailwind.config.ts**: Custom theme and design tokens
+- **tsconfig.json**: TypeScript compiler options with path mapping
