@@ -1,171 +1,125 @@
-# HaxTrace Map Editor - Design Guidelines
+# ILoveHax Tools Landing Page - Design Guidelines
 
 ## Design Approach
-
-**Reference-Based Approach:** Inspired by Dripzels and modern design tools (Figma, Linear, Framer) with a focus on dark-themed creative applications. This is a utility-focused application requiring precision, clarity, and efficient workflows.
-
-**Core Design Principles:**
-- Dark-first interface optimized for extended editing sessions
-- High contrast for canvas content visibility
-- Minimal chrome to maximize workspace
-- Professional tool aesthetic with subtle depth
-
----
+**Utility-First Design** inspired by iLoveHax and iLoveImg - Clear, functional, and efficient. Focus on quick access to tools with modern interactive elements.
 
 ## Color Palette
 
-**Dark Mode Foundation:**
-- Background Base: `0 0% 7%` (Deep charcoal)
-- Surface Elevated: `0 0% 11%` (Panels, sidebars)
-- Surface Interactive: `0 0% 15%` (Hover states, cards)
-- Border Subtle: `0 0% 20%` (Dividers, panel edges)
-- Border Strong: `0 0% 28%` (Active borders, selected states)
+### Light Mode (Default)
+- **Background**: Pure white (#FFFFFF)
+- **Container Background**: Soft gray (#F9F9F9)
+- **Primary Text**: Dark gray (#333333)
+- **Secondary Text**: Medium gray (#555555)
+- **Accent/Interactive**: Light blue (#2196F3)
+- **Footer Text**: Light gray (#777777)
 
-**Accent Colors:**
-- Primary (Active/Selection): `217 91% 60%` (Bright blue - for selected tools, active states)
-- Success: `142 76% 36%` (Grid helpers, confirmations)
-- Warning: `38 92% 50%` (Unsaved changes indicators)
-- Error: `0 84% 60%` (Destructive actions)
-
-**Text Hierarchy:**
-- Primary Text: `0 0% 98%` (Headings, labels)
-- Secondary Text: `0 0% 72%` (Descriptions, metadata)
-- Tertiary Text: `0 0% 52%` (Placeholder, disabled)
-
----
+### Dark Mode
+- CSS variables switch: `--bg`, `--text`, `--card-bg` inverted for dark theme
+- Maintain 4.5:1 contrast ratio (WCAG AA compliance)
 
 ## Typography
-
-**Font Families:**
-- Primary: `'Inter', -apple-system, sans-serif` (UI, labels, buttons)
-- Monospace: `'JetBrains Mono', 'Fira Code', monospace` (Coordinates, dimensions, code)
-
-**Type Scale:**
-- Logo/Hero: `text-2xl font-bold` (24px)
-- Panel Headers: `text-sm font-semibold tracking-wide uppercase` (12px)
-- Body/Labels: `text-sm` (14px)
-- Small/Meta: `text-xs` (12px)
-- Coordinates: `text-xs font-mono` (12px monospace)
-
-**Text Treatment:**
-- Panel headers: Uppercase with letter-spacing
-- Values/inputs: Tabular numbers for alignment
-- Tool labels: Sentence case, concise
-
----
+- **Base Size**: 16px
+- **Line Height**: 1.5
+- **Font Family**: Generic sans-serif system fonts
+- **Hero Title**: 2rem (32px)
+- **Hero Subtitle**: 1rem, color #555555
+- **Card Title**: 1.2rem
+- **Card Description**: 0.9rem
+- **Footer**: 0.8rem
 
 ## Layout System
 
-**Spacing Primitives:** Use Tailwind units of `2, 3, 4, 6, 8` for consistent rhythm
-- Micro spacing: `p-2, gap-2` (8px) - Within components
-- Standard spacing: `p-4, gap-4` (16px) - Between elements
-- Section spacing: `p-6, gap-6` (24px) - Panel padding
-- Large spacing: `p-8` (32px) - Major separations
+### Hero Section (30% viewport height)
+- **Top Bar**: Logo "logo-ilh-2.png" as main logo in upper left/center
+- **Secondary Logos**: "logo-ilh.png" and "vec-full.png" displayed in header area
+- **Dark Mode Toggle**: Floating button in top-right corner
+- **User Menu**: Icon in header with dropdown for "Mis presets" and "Cerrar sesión"
+- **Title + Subtitle**: Centered with subtle fade-in animations (opacity + transform)
 
-**Grid Structure:**
-```
-┌─────────────────────────────────────────────┐
-│ Header (h-14)                               │
-├──────┬──────────────────────────┬───────────┤
-│ Left │   Main Canvas Area       │   Right   │
-│ Side │   (Flex-grow)            │   Side    │
-│ bar  │                          │   bar     │
-│(280) │                          │   (320)   │
-└──────┴──────────────────────────┴───────────┘
-```
+### Tool Cards Grid
+- **Layout**: Responsive flex grid with `flex-wrap: wrap`, `justify-content: center`, `gap: 2rem`
+- **Cards**: 2 main tool cards (Emphasize, Editor)
+- **Card Contents**: 
+  - Icon (64×64px SVG/PNG)
+  - Title (1.2rem)
+  - Description (0.9rem)
+- **Mobile**: Full-width cards with max-width: 300px
+- **Desktop**: Side-by-side card presentation
 
-**Component Spacing:**
-- Header height: `h-14` (56px)
-- Sidebar widths: Left `w-70` (280px), Right `w-80` (320px)
-- Panel internal padding: `p-4`
-- Section gaps: `gap-6`
+### Search Bar
+- Global search positioned below hero or in header
+- Autocomplete dropdown for tools/presets filtering
+- Metadata-based search (grid, color, physics keywords)
 
----
+### Footer
+- **Layout**: Centered text
+- **Legal Links**: Privacy, Terms
+- **Social Icons**: SVG icons for social media
+- **Statistics Icon**: Hidden panel trigger for metrics
+- **Feedback Form**: Modal trigger
 
 ## Component Library
 
-### Header Navigation
-- Dark background `bg-[hsl(0,0%,7%)]` with subtle bottom border
-- Logo: Bold, 24px, with icon glyph
-- Nav items: Subtle hover `hover:bg-[hsl(0,0%,11%)]`, rounded `rounded-md`, padding `px-3 py-2`
-- User controls: Right-aligned, icon buttons
-
-### Sidebar Panels
-- Background: `bg-[hsl(0,0%,11%)]` slightly elevated from main background
-- Panel sections with headers: Uppercase, tracked, `text-xs font-semibold`, `pb-3`
-- Collapsible sections with chevron icons
-- Borders between major sections: `border-b border-[hsl(0,0%,20%)]`
-
-### Tool Palette
-- Icon-based tool buttons in a vertical strip
-- Active tool: `bg-[hsl(217,91%,60%)] text-white`
-- Inactive tools: `text-gray-400 hover:bg-[hsl(0,0%,15%)]`
-- Button size: `w-10 h-10`, icons `w-5 h-5`
-- Tooltips on hover with keyboard shortcuts
-
-### Canvas Area
-- Main workspace background: `bg-[hsl(0,0%,9%)]`
-- Canvas grid: Subtle lines `stroke-[hsl(0,0%,15%)]`, 1px weight
-- Floating control panel (top-right): Zoom controls, coordinates display
-- Semi-transparent backdrop: `bg-black/40 backdrop-blur-sm`
-
-### Input Fields
-- Background: `bg-[hsl(0,0%,7%)]` (darker than panel)
-- Border: `border border-[hsl(0,0%,28%)]`
-- Focus state: `ring-2 ring-[hsl(217,91%,60%)] border-transparent`
-- Padding: `px-3 py-2`
-- Height: `h-9` for standard inputs
+### Interactive Cards
+- **Hover State**: `transform: translateY(-4px)` + border color changes to accent
+- **Focus State**: No outline, `box-shadow: 0 0 0 3px rgba(33,150,243,0.3)`
+- **Click Action**: External links (target="_blank") to tools
+  - Emphasize → https://mo0negtt.github.io/ilovehax/
+  - Editor → https://mo0negtt.github.io/haxpuck/
 
 ### Buttons
-- Primary: `bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white`
-- Secondary: `bg-[hsl(0,0%,15%)] hover:bg-[hsl(0,0%,20%)] text-gray-200`
-- Outline: `border border-[hsl(0,0%,28%)] hover:bg-[hsl(0,0%,15%)]`
-- Height: `h-9`, padding: `px-4`
+- **Primary CTA**: Accent blue background with white text
+- **Dark Mode Toggle**: Floating button with theme icon
+- **Outline Buttons**: For secondary actions on image backgrounds (with blur backdrop)
 
-### Layer Panel (Right Sidebar)
-- Layer rows: `bg-[hsl(0,0%,13%)]` with `hover:bg-[hsl(0,0%,15%)]`
-- Active layer: `border-l-2 border-[hsl(217,91%,60%)]`
-- Drag handles: Subtle icon, `text-gray-600`
-- Layer controls: Visibility toggle, lock, delete icons at right
+### Modals & Overlays
+- **Help Overlay**: Triggered by /? keyboard shortcut
+- **Feedback Modal**: Quick form for user comments
+- **Statistics Panel**: Metrics display (users, loads, performance)
 
-### Properties Panel
-- Label-value pairs in vertical stack
-- Labels: `text-xs text-gray-500 uppercase tracking-wide mb-1`
-- Values: Input fields or read-only displays
-- Color picker: Compact swatch with hex input
+## Animations
+- **Hero Elements**: Subtle fade-in on load (opacity 0→1, transform translateY)
+- **Card Interactions**: Smooth 0.2s transitions on hover/focus
+- **Modal Entry**: Fade + scale animation
+- **Minimal Motion**: Respect user preferences for reduced motion
 
-### Tile Palette (Bottom or Right)
-- Grid of tile thumbnails: `grid grid-cols-8 gap-1`
-- Tile size: `w-12 h-12`
-- Active tile: `ring-2 ring-[hsl(217,91%,60%)]`
-- Background: `bg-[hsl(0,0%,13%)]`
+## Advanced Features
 
----
+### Keyboard Shortcuts
+- **E**: Open Emphasize tool
+- **D**: Open Editor tool
+- **/?**: Open help overlay
 
-## Interactions & States
+### Dark Mode
+- Toggle in header saves preference to localStorage
+- CSS variables update for theme switching
+- Smooth transition between modes
 
-**Hover States:** Subtle brightness increase `hover:brightness-110` or background shift
-**Active/Selected:** Primary blue border or background
-**Disabled:** `opacity-40 cursor-not-allowed`
-**Focus Rings:** `ring-2 ring-[hsl(217,91%,60%)] ring-offset-2 ring-offset-[hsl(0,0%,7%)]`
+### PWA Configuration
+- Service Worker for offline asset caching
+- Manifest.json with adaptive icons
+- Installable as standalone app
 
-**Animations:** Minimal - use only for:
-- Panel collapse/expand: `transition-all duration-200`
-- Tool selection feedback: Quick background transition
-- Canvas operations: Instant, no delays
+### User Presets
+- Dropdown menu for saved configurations
+- Sync with user account
+- Quick access to frequent settings
 
----
+### Search & Filtering
+- Real-time filtering of tools/presets
+- Tag-based search metadata
+- Autocomplete suggestions
 
 ## Accessibility
+- **Keyboard Navigation**: 100% accessible via keyboard
+- **ARIA Labels**: All buttons and links properly labeled
+- **Contrast Ratios**: Minimum 4.5:1 (WCAG AA)
+- **Focus Indicators**: Clear, 3px box-shadow rings
+- **Responsive Range**: 320px to 1920px
 
-- Maintain 4.5:1 contrast for all text
-- Keyboard navigation: Tab through all controls, Escape to cancel
-- Tool shortcuts displayed in tooltips
-- Screen reader labels for icon-only buttons
-- Focus indicators always visible
+## Box Model
+- `box-sizing: border-box` on all elements for consistent spacing
+- Consistent padding/margins using design system values
 
----
-
-## No Images Required
-
-This is a utility application - no decorative images needed. All visuals are functional: icons for tools, canvas content, and UI controls.
+## Images
+No large hero image - this is a utility-focused landing with logo-based branding and tool card navigation.
