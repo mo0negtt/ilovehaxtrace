@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, Settings, HelpCircle, Undo, Redo, Save } from "lucide-react";
+import { Settings, HelpCircle, Undo, Redo, Save } from "lucide-react";
 import { useEditor } from "@/contexts/EditorContext";
 import { ImportExportDialog } from "./ImportExportDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -36,15 +36,7 @@ export default function EditorHeaderConnected({ onNavigate }: EditorHeaderConnec
         </div>
         
         <nav className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleNavClick('home')}
-            data-testid="button-nav-home"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Home
-          </Button>
+          {/* Home button removed */}
           <Button
             variant="ghost"
             size="sm"

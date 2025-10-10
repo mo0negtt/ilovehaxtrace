@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Home, FileDown, FileUp, Settings, HelpCircle } from "lucide-react";
+import { FileDown, FileUp, Settings, HelpCircle } from "lucide-react";
 
 interface EditorHeaderProps {
   onNavigate?: (page: string) => void;
@@ -22,15 +22,7 @@ export default function EditorHeader({ onNavigate }: EditorHeaderProps) {
         </div>
         
         <nav className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleNavClick('home')}
-            data-testid="button-nav-home"
-          >
-            <Home className="w-4 h-4 mr-2" />
-            Home
-          </Button>
+          {/* Home button removed */}
           <Button
             variant="ghost"
             size="sm"
