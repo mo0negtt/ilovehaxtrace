@@ -50,14 +50,14 @@ function EditorContent() {
   }, [undo, redo, selectedVertices, selectedSegments, deleteSelectedVertices, deleteSelectedSegments]);
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen">
       <HaxTraceToolbar />
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 relative">
           <HaxTraceCanvas />
           <HaxTraceCurveEditor />
         </div>
-        <div className="w-80 border-l p-4 overflow-y-auto space-y-4">
+        <div className="w-80 border-l p-4 overflow-y-auto space-y-4 bg-card/60 backdrop-blur supports-[backdrop-filter]:bg-card/40">
           <ViewControls />
           <BackgroundImagePanel
             backgroundImage={map.bg.image}

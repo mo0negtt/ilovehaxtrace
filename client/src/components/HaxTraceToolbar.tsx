@@ -18,9 +18,12 @@ import {
   Info,
   Grid3x3,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Music2,
+  MessageSquare
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import FeedbackModal from '@/components/FeedbackModal';
 
 export const HaxTraceToolbar = () => {
   const {
@@ -45,6 +48,7 @@ export const HaxTraceToolbar = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const handleExport = () => {
     const exportedMap = exportMap();
@@ -79,7 +83,7 @@ export const HaxTraceToolbar = () => {
   };
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-card border-b">
+    <div className="sticky top-0 z-40 flex items-center gap-2 p-2 border-b bg-card/70 backdrop-blur supports-[backdrop-filter]:bg-card/60 shadow-sm">
       <div className="flex items-center gap-1">
         <Button
           data-testid="button-tool-vertex"
@@ -236,6 +240,26 @@ export const HaxTraceToolbar = () => {
       <div className="flex items-center gap-1">
         <ThemeToggle />
         <Button
+          data-testid="button-tiktok"
+          size="sm"
+          variant="ghost"
+          onClick={() => window.open('https://www.tiktok.com/@mo0negtt', '_blank')}
+          title="TikTok"
+        >
+          <Music2 className="w-4 h-4 mr-1" />
+          TikTok
+        </Button>
+        <Button
+          data-testid="button-comments"
+          size="sm"
+          variant="ghost"
+          onClick={() => setCommentsOpen(true)}
+          title="Enviar comentarios"
+        >
+          <MessageSquare className="w-4 h-4 mr-1" />
+          Comentarios
+        </Button>
+        <Button
           data-testid="button-open-haxpuck"
           size="sm"
           variant="ghost"
@@ -277,6 +301,8 @@ export const HaxTraceToolbar = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <FeedbackModal open={commentsOpen} onClose={() => setCommentsOpen(false)} />
     </div>
   );
 };

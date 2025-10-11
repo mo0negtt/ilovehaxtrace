@@ -18,6 +18,15 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        {/* Background gradients inspired by modern creator sites; keep original palette */}
+        <div
+          aria-hidden
+          className="fixed inset-0 -z-10 pointer-events-none"
+          style={{
+            backgroundImage:
+              'radial-gradient(800px 400px at 0% 0%, hsl(var(--primary) / 0.10), transparent 60%), radial-gradient(600px 300px at 100% 0%, hsl(var(--accent) / 0.12), transparent 60%), radial-gradient(900px 500px at 50% 100%, hsl(var(--muted-foreground) / 0.06), transparent 60%)',
+          }}
+        />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>

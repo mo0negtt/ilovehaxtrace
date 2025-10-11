@@ -1,4 +1,4 @@
-import { Github, Twitter, Heart } from "lucide-react";
+import { Github, Twitter, Heart, Music2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FooterProps {
@@ -24,6 +24,16 @@ export default function Footer({ onFeedbackClick }: FooterProps) {
               data-testid="button-feedback"
             >
               Feedback
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              data-testid="link-comments"
+            >
+              <a href="#" onClick={(e) => { e.preventDefault(); onFeedbackClick?.(); }}>
+                <MessageSquare className="h-4 w-4 mr-2" /> Comentarios
+              </a>
             </Button>
             <Button
               variant="ghost"
@@ -62,6 +72,16 @@ export default function Footer({ onFeedbackClick }: FooterProps) {
             >
               <a href="#twitter" aria-label="Twitter">
                 <Twitter className="h-5 w-5" />
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              data-testid="link-tiktok"
+            >
+              <a href="https://www.tiktok.com/@mo0negtt" target="_blank" rel="noreferrer" aria-label="TikTok">
+                <Music2 className="h-5 w-5" />
               </a>
             </Button>
           </div>

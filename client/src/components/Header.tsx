@@ -17,14 +17,14 @@ export default function Header({ onSearch }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b">
+    <header className="sticky top-0 z-50 border-b bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/50">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center">
             <img
               src={theme === "dark" ? logoDark : logoLight}
               alt="ILoveHax"
-              className="h-8 w-auto"
+              className="h-8 w-auto transition-transform hover:scale-[1.03]"
               data-testid="img-logo-main"
             />
           </div>

@@ -23,11 +23,21 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
 
   const handleSubmit = () => {
     if (!feedback.trim()) return;
-    
+
+    const subject = "Comentario para ILoveHax Tools";
+    const body = feedback;
+    const mailtoUrl = `mailto:mo0negtt@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    try {
+      window.location.href = mailtoUrl;
+    } catch (_) {
+      // noop - fallback to toast only
+    }
+
     console.log("Feedback enviado:", feedback);
     toast({
-      title: "¡Gracias por tu feedback!",
-      description: "Hemos recibido tu comentario.",
+      title: "¡Gracias por tu comentario!",
+      description: "Se abrirá tu cliente de correo para enviarlo.",
     });
     setFeedback("");
     onClose();
