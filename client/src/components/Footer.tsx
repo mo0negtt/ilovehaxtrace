@@ -1,4 +1,4 @@
-import { Github, Twitter, Heart } from "lucide-react";
+import { Github, Twitter, Heart, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface FooterProps {
@@ -62,6 +62,16 @@ export default function Footer({ onFeedbackClick }: FooterProps) {
             >
               <a href="#twitter" aria-label="Twitter">
                 <Twitter className="h-5 w-5" />
+              </a>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              data-testid="link-tiktok"
+            >
+              <a href="https://www.tiktok.com/@mo0negtt" target="_blank" rel="noopener noreferrer">
+                TikTok <ArrowUpRight className="ml-1 h-4 w-4" />
               </a>
             </Button>
           </div>
